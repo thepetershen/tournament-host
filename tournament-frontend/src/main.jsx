@@ -4,6 +4,7 @@ import { createBrowserRouter, RouterProvider, BrowserRouter, Routes, Route, Link
 import HomePage from './Pages/HomePage';
 import TournamentPage from './Pages/TournamentPage';
 import NotFoundPage from './Pages/NotFoundPage';
+import SingleElimEventMatch from './Components/SingleElimEvent/SingleElimEventMatch';
 
 const router = createBrowserRouter([
   {
@@ -14,6 +15,10 @@ const router = createBrowserRouter([
   {
     path:"/tournament",
     element: <TournamentPage/>
+  },
+  {
+    path:"/testmatch",
+    element: <SingleElimEventMatch playerTop= "player1" playerBottom='player2' winner = "player1" arrOfScore={[[21,16], [15, 21], [22,20]]}/>
   }
 ]);
 

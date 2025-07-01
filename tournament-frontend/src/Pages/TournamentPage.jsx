@@ -1,4 +1,4 @@
-import SingleElimBracket from "../Components/SingleElimBracket.jsx";
+import SingleElimBracket from "../Components/SingleElimEvent/SingleElimBracket.jsx";
 
 function TournamentPage () {
     return (
