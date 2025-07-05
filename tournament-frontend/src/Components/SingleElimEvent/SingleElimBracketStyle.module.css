@@ -1,0 +1,51 @@
+
+.main {
+    display:flex;
+    flex-direction: row;
+    padding: 30px;
+    background-color: #eeeded; 
+    overflow-x: auto;      /* Enable horizontal scrolling if needed */
+    overflow-y: auto;      /* Enable vertical scrolling if needed */
+}
+
+.round {
+    flex-direction: column;
+    justify-content:space-between;
+    width: fit-content;    /* Only as wide as its content */
+
+    height: 100%; 
+}
+
+.gameSpacer {
+    width: 100%;
+    background: transparent; /* or remove this line, as blank is default */
+    display: block;
+    padding: 0;
+    margin: 0;
+    border: none;
+}
+
+.roundContainer {
+    display: flex;
+    flex-direction: row;
+    width: fit-content;
+    box-sizing: border-box;
+    padding: 0;
+    margin: 0;
+}
+
+.connectingLinesBlock {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    width: 1px;
+}
+
+.connectingLines {
+    width: 100%;
+    background-color: transparent; /* Default: no color */
+}
+
+.connectingLines:nth-child(2n) {
+    background-color: #b0b0b0; /* Only odd lines have color */
+}

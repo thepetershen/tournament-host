@@ -1,10 +1,16 @@
+.matchRightConnector {
+    width: 24px;      /* Length of the line */
+    height: 2px;      /* Thickness of the line */
+    background: #b0b0b0; /* Line color */
+    align-self: center;
+}
 
 .container {
     padding: 5px 15px;
     width: fit-content;
-    height: 50px;
+    min-width: 240px;
     border-radius: 12px;
-    background-color: #eeeded;      /* Light gray background */
+    background-color: white;      /* Light gray background */
     border: 1.5px solid #b0b0b0;   /* Subtle border */
     font-family: "Open-Sans", 'Segoe UI', 'Roboto', Arial, sans-serif;
     font-size: 1.1rem;
