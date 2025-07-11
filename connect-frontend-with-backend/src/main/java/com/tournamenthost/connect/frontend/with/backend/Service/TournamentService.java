@@ -39,6 +39,12 @@ public class TournamentService {
         return tournamentRepo.save(tournament);
     }
 
+    public List<Tournament> getAllTournaments() {
+        List<Tournament> tournaments = new ArrayList<>();
+        tournamentRepo.findAll().forEach(tournaments::add);
+        return tournaments;
+    }
+
     public void addPlayer(Long tournamentId, String name) {
         Tournament tournament = tournamentRepo.findById(tournamentId)
             .orElseThrow(() -> new IllegalArgumentException("Tournament with id " + tournamentId + " not found"));

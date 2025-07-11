@@ -1,0 +1,44 @@
+.pageContainer {
+    padding: 2rem;
+}
+
+.heading {
+    font-size: 2rem;
+    margin-bottom: 2rem;
+    text-align: left;
+}
+
+.tournamentGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 2rem;
+}
+
+.tournamentCard {
+    background: #444;
+    color: #fff;
+    border-radius: 16px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    min-height: 120px;
+    transition: box-shadow 0.2s;
+}
+
+.tournamentCard:hover {
+    box-shadow: 0 4px 16px rgba(0,0,0,0.25);
+}
+
+.tournamentName {
+    font-size: 1.3rem;
+    font-weight: bold;
+    margin-bottom: 1rem;
+}
+
+.tournamentDetails {
+    font-size: 1rem;
+    color: #ccc;
+    min-height: 30px; /* Space for future details */
+}

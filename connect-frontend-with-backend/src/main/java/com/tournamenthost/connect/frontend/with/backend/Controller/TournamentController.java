@@ -1,5 +1,6 @@
 package com.tournamenthost.connect.frontend.with.backend.Controller;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import org.springframework.web.bind.annotation.CrossOrigin;
@@ -13,6 +14,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.tournamenthost.connect.frontend.with.backend.DTO.MatchDTO;
 import com.tournamenthost.connect.frontend.with.backend.DTO.PlayerRequest;
+import com.tournamenthost.connect.frontend.with.backend.DTO.TournamentDTO;
 import com.tournamenthost.connect.frontend.with.backend.DTO.TournamentRequest;
 import com.tournamenthost.connect.frontend.with.backend.Model.Match;
 import com.tournamenthost.connect.frontend.with.backend.Model.Tournament;
@@ -38,6 +40,19 @@ public class TournamentController {
     @PutMapping("/{id}/name")
     public Tournament changeTournamentName(@PathVariable Long id, @RequestBody String newName) {
         return tournamentService.changeTournamentName(id, newName.replace("\"", "")); // Remove quotes if sent as raw string
+    }
+
+    @GetMapping
+    public List<TournamentDTO> getAllTournaments() {
+        List<Tournament> tournaments = tournamentService.getAllTournaments();
+        List<TournamentDTO> answer = new ArrayList<>();
+
+        for(Tournament cur: tournaments) {
+            TournamentDTO dto = new TournamentDTO();
+            dto.setName(cur.getName());
+            answer.add(dto);
+        }
+        return answer;
     }
 
     // Add a single player

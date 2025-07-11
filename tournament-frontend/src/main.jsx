@@ -1,21 +1,21 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-import { createBrowserRouter, RouterProvider, BrowserRouter, Routes, Route, Link } from 'react-router-dom';
+import { createBrowserRouter, RouterProvider } from 'react-router-dom';
 import HomePage from './Pages/HomePage';
-import TournamentPage from './Pages/TournamentPage';
+import TournamentPage from './Pages/TournamentPage/TournamentPage';
 import NotFoundPage from './Pages/NotFoundPage';
-import SingleElimBracket from './Components/SingleElimEvent/SingleElimBracket';
-
+import Layout from './Pages/Layout';
 
 const router = createBrowserRouter([
   {
     path: "/",
-    element: <HomePage/>,
-    errorElement: <NotFoundPage/>
-  },
-  {
-    path:"/tournament",
-    element: <TournamentPage/>
+    element: <Layout />, // Layout wraps all child routes
+    errorElement: <NotFoundPage />,
+    children: [
+      { index: true, element: <HomePage /> },
+      { path: "tournament", element: <TournamentPage /> },
+      // Add more child routes here
+    ],
   },
 ]);
 
