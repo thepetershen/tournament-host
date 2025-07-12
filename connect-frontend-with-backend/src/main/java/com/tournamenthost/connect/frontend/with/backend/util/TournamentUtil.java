@@ -5,9 +5,13 @@ import java.util.Collections;
 import java.util.List;
 
 public class TournamentUtil {
-    public static int highestPowerOfTwo(int n) {
-        if (n < 1) return 0;
-        return Integer.highestOneBit(n);
+    public static int nextPowerOfTwo(int n) {
+        if (n < 1) return 1;
+        int power = 1;
+        while (power < n) {
+            power *= 2;
+        }
+        return power;
     }
 
     public static ArrayList<String> generateDrawUsingSeeding(List<String> players, int matchAmount) {
@@ -19,8 +23,8 @@ public class TournamentUtil {
         ArrayList<String> top = new ArrayList<>();
 
         for(int i = 0; i < matchAmount; i++) {
-            top.add(copyOfPlayers.get(i));
-            copyOfPlayers.remove(i);
+            top.add(copyOfPlayers.get(0));
+            copyOfPlayers.remove(0);
         }
 
         ArrayList<String> bottom = new ArrayList<>(copyOfPlayers);

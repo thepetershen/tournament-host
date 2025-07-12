@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from "react";
 import SingleElimBracket from "../../Components/SingleElimEvent/SingleElimBracket.jsx";
-import styles from "./TournamentPage.module.css";
+import styles from "./TournamentMainPage.module.css";
 import axios from "axios";
+import { Link } from "react-router-dom";
 
 function TournamentPage() {
     const [tournaments, setTournaments] = useState([]);
@@ -25,7 +26,12 @@ function TournamentPage() {
             <div className={styles.tournamentGrid}>
                 {tournaments.map((tournament) => (
                     <div key={tournament.id} className={styles.tournamentCard}>
-                        <div className={styles.tournamentName}>{tournament.name}</div>
+                        <Link
+                            to={`/tournament/${tournament.id}`}
+                            className={styles.tournamentName}
+                        >
+                            {tournament.name}
+                        </Link>
                         <div className={styles.tournamentDetails}>
                             {/* Placeholder for future details (date, players, etc.) */}
                         </div>

@@ -39,6 +39,12 @@ public class TournamentService {
         return tournamentRepo.save(tournament);
     }
 
+    public Tournament getTournament(Long tournamentId){
+        Tournament tournament = tournamentRepo.findById(tournamentId)
+            .orElseThrow(() -> new IllegalArgumentException("Tournament with id " + tournamentId + " not found"));
+        return tournament;
+    }
+
     public List<Tournament> getAllTournaments() {
         List<Tournament> tournaments = new ArrayList<>();
         tournamentRepo.findAll().forEach(tournaments::add);
@@ -73,7 +79,7 @@ public class TournamentService {
 
         //first create the nessesary matches in an nested arraylist
 
-        int matchAmount = TournamentUtil.highestPowerOfTwo(players.size())/2;
+        int matchAmount = TournamentUtil.nextPowerOfTwo(players.size())/2;
         int matchAmountForCurRound = matchAmount;
         List<List<Match>> tournamentInNestedArr = new ArrayList<>();
         List<Match> allMatch = new ArrayList<>();

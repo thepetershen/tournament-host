@@ -38,8 +38,17 @@ public class TournamentController {
 
     // Change tournament name
     @PutMapping("/{id}/name")
-    public Tournament changeTournamentName(@PathVariable Long id, @RequestBody String newName) {
+    public Tournament setTournamentName(@PathVariable Long id, @RequestBody String newName) {
         return tournamentService.changeTournamentName(id, newName.replace("\"", "")); // Remove quotes if sent as raw string
+    }
+
+    @GetMapping("/{id}/name")
+    public TournamentDTO getTournamentName(@PathVariable Long id) {
+        TournamentDTO dto = new TournamentDTO();
+        Tournament tournament = tournamentService.getTournament(id);
+        dto.setName(tournament.getName());
+        dto.setId(tournament.getId());
+        return dto;
     }
 
     @GetMapping
@@ -50,6 +59,7 @@ public class TournamentController {
         for(Tournament cur: tournaments) {
             TournamentDTO dto = new TournamentDTO();
             dto.setName(cur.getName());
+            dto.setId(cur.getId());
             answer.add(dto);
         }
         return answer;

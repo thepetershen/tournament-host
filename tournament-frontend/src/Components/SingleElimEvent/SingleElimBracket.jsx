@@ -59,7 +59,6 @@ function createMatchesForRound(roundDraw, isFirstRound,curSpacing) {
 }
 
 function createConnectingLinesForMatches(num, spacing){
-    console.log(spacing)
     const answer = []
     answer.push(<div className={styles.connectingLines} style = {{height: (spacing/2)+"px"}}></div>)
     for(let i = 0; i < num-1; i++){
