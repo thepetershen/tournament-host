@@ -3,6 +3,7 @@ package com.tournamenthost.connect.frontend.with.backend.Controller;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -32,23 +33,46 @@ public class TournamentController {
 
     // URL: POST /api/tournaments
     @PostMapping
-    public Tournament createTournament(@RequestBody TournamentRequest request) {
-        return tournamentService.addTournament(request.getName());
+    public ResponseEntity<?> createTournament(@RequestBody TournamentRequest request) {
+        try {
+            Tournament tournament = tournamentService.addTournament(request.getName());
+            TournamentDTO dto = new TournamentDTO();
+            dto.setName(tournament.getName());
+            dto.setId(tournament.getId());
+            return ResponseEntity.ok(dto);
+        } catch (IllegalArgumentException e) {
+            // Duplicate tournament name
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
     }
 
     // Change tournament name
     @PutMapping("/{id}/name")
-    public Tournament setTournamentName(@PathVariable Long id, @RequestBody String newName) {
-        return tournamentService.changeTournamentName(id, newName.replace("\"", "")); // Remove quotes if sent as raw string
+    public ResponseEntity<?> setTournamentName(@PathVariable Long id, @RequestBody String newName) {
+        try{
+            Tournament tournament = tournamentService.changeTournamentName(id, newName.replace("\"", "")); // Remove quotes if sent as raw string
+            TournamentDTO dto = new TournamentDTO();
+            dto.setName(tournament.getName());
+            dto.setId(tournament.getId());
+            return ResponseEntity.ok(dto);
+        } catch(IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
     }
 
     @GetMapping("/{id}/name")
-    public TournamentDTO getTournamentName(@PathVariable Long id) {
-        TournamentDTO dto = new TournamentDTO();
-        Tournament tournament = tournamentService.getTournament(id);
-        dto.setName(tournament.getName());
-        dto.setId(tournament.getId());
-        return dto;
+    public ResponseEntity<?> getTournamentName(@PathVariable Long id) {
+        try {
+            Tournament tournament = tournamentService.getTournament(id);
+            TournamentDTO dto = new TournamentDTO();
+            dto.setName(tournament.getName());
+            dto.setId(tournament.getId());
+            return ResponseEntity.ok(dto);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+
+        
     }
 
     @GetMapping
@@ -65,38 +89,63 @@ public class TournamentController {
         return answer;
     }
 
-    // Add a single player
+    // Add players (accepts a list, even if only one)
     @PostMapping("/{id}/players")
-    public void addPlayer(@PathVariable Long id, @RequestBody PlayerRequest playerRequest) {
-        tournamentService.addPlayer(id, playerRequest.getName());
-    }
-
-    // Add multiple players
-    @PostMapping("/{id}/players/batch")
-    public void addPlayers(@PathVariable Long id, @RequestBody List<PlayerRequest> playerRequests) {
-        List<String> names = playerRequests.stream()
-            .map(PlayerRequest::getName)
-            .toList();
-        tournamentService.addPlayer(id, names);
+    public ResponseEntity<?> addPlayers(@PathVariable Long id, @RequestBody List<PlayerRequest> playerRequests) {
+        try {
+            List<String> names = playerRequests.stream()
+                .map(PlayerRequest::getName)
+                .toList();
+            tournamentService.addPlayer(id, names);
+            return ResponseEntity.ok().build();
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
     }
 
     // Get all players
     @GetMapping("/{id}/players")
-    public List<String> getPlayers(@PathVariable Long id) {
-        return tournamentService.getPlayers(id);
+    public ResponseEntity<?> getPlayers(@PathVariable Long id) {
+        try {
+            List<String> players = tournamentService.getPlayers(id);
+            return ResponseEntity.ok(players);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
     }
 
     // Initialize tournament (stub)
     @PostMapping("/{id}/initialize")
-    public void initializeTournament(@PathVariable Long id) {
-        tournamentService.initializeTournament(id);
+    public ResponseEntity<?> initializeTournament(@PathVariable Long id) {
+        try {
+            tournamentService.initializeTournament(id);
+            return ResponseEntity.ok().build();
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    // Deinitialize tournament (removes rounds and matches, keeps players)
+    @PostMapping("/{id}/deinitialize")
+    public ResponseEntity<?> deinitializeTournament(@PathVariable Long id) {
+        try {
+            tournamentService.deinitializeTournament(id);
+            return ResponseEntity.ok().build();
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
     }
 
     @GetMapping("/{id}/draw")
-    public List<List<MatchDTO>> getTournamentDraw(@PathVariable Long id) {
-        List<List<Match>> draw = tournamentService.getTournamentDraw(id);
-        List<List<MatchDTO>> dtoDraw = new java.util.ArrayList<>();
+    public ResponseEntity<?> getTournamentDraw(@PathVariable Long id) {
+        List<List<Match>> draw;
+        try {
+            draw = tournamentService.getTournamentDraw(id);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
 
+        List<List<MatchDTO>> dtoDraw = new java.util.ArrayList<>();
         for (List<Match> round : draw) {
             List<MatchDTO> roundDTOs = new java.util.ArrayList<>();
             for (Match match : round) {
@@ -109,7 +158,6 @@ public class TournamentController {
             }
             dtoDraw.add(roundDTOs);
         }
-
-        return dtoDraw;
+        return ResponseEntity.ok(dtoDraw);
     }
 }

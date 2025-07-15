@@ -34,33 +34,9 @@ public class Match {
 
     private List<Integer> score;
 
-    @OneToOne
-    @JoinColumn(name = "previous_match_a_id")
-    private Match previousMatchA;
-
-    @OneToOne
-    @JoinColumn(name = "previous_match_b_id")
-    private Match previousMatchB;
-
-    // Optional: track this match's "next" (where the winner goes)
-    @ManyToOne
-    @JoinColumn(name = "next_match_id")
-    private Match nextMatch;
 
     @ManyToOne
-    @JoinColumn(name = "tournament_id")
     private Tournament tournament;
 
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
-        Match match = (Match) o;
-        return id != null && id.equals(match.id);
-    }
 
-    @Override
-    public int hashCode() {
-        return id != null ? id.hashCode() : 0;
-    }
 }

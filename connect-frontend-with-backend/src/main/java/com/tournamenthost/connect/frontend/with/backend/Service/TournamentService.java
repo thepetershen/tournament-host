@@ -24,17 +24,22 @@ public class TournamentService {
     private MatchRepository matchRepo;
 
     public Tournament addTournament(String name) {
+        // Check for duplicate tournament name (case and space insensitive)
+        if (tournamentRepo.existsByNameIgnoreCaseAndSpaces(name)) {
+            throw new IllegalArgumentException("Tournament with name '" + name + "' already exists");
+        }
         Tournament tournament = new Tournament();
         tournament.setName(name);
-        // Optionally initialize players and matches lists
-        tournament.setPlayers(new ArrayList<>());
-        tournament.setAllMatches(new ArrayList<>());
         return tournamentRepo.save(tournament);
     }
 
     public Tournament changeTournamentName(Long tournamentId, String newName) {
         Tournament tournament = tournamentRepo.findById(tournamentId)
             .orElseThrow(() -> new IllegalArgumentException("Tournament with id " + tournamentId + " not found"));
+
+        if (tournamentRepo.existsByNameIgnoreCaseAndSpaces(newName)) {
+            throw new IllegalArgumentException("Tournament with name '" + newName + "' already exists");
+        }
         tournament.setName(newName);
         return tournamentRepo.save(tournament);
     }
@@ -55,6 +60,9 @@ public class TournamentService {
         Tournament tournament = tournamentRepo.findById(tournamentId)
             .orElseThrow(() -> new IllegalArgumentException("Tournament with id " + tournamentId + " not found"));
 
+        if(tournamentRepo.isTournamentInitialized(tournamentId)) {
+            throw new IllegalArgumentException("Tournament with id " + tournamentId + "has already be initiated");
+        }
         tournament.addPlayer(name);
         tournamentRepo.save(tournament);
     }
@@ -77,6 +85,13 @@ public class TournamentService {
             .orElseThrow(() -> new IllegalArgumentException("Tournament with id " + tournamentId + " not found"));
         List<String> players = tournament.getPlayers();
 
+        if (players.size() <= 2) {
+            throw new IllegalArgumentException("There are too few players, the begining of this event demands at least 3 players");
+        }
+
+        if  (tournamentRepo.isTournamentInitialized(tournamentId)){
+            throw new IllegalArgumentException("this tournament is already been initialized, please deinitialize it first");
+        }
         //first create the nessesary matches in an nested arraylist
 
         int matchAmount = TournamentUtil.nextPowerOfTwo(players.size())/2;
@@ -88,6 +103,7 @@ public class TournamentService {
             List<Match> curRoundMatches = new ArrayList<>();
             for(int i = 0; i < matchAmountForCurRound; i++) {
                 Match curMatch = new Match();
+                curMatch.setTournament(tournament);
                 curRoundMatches.add(curMatch);
                 allMatch.add(curMatch);
             }
@@ -95,20 +111,6 @@ public class TournamentService {
             matchAmountForCurRound /= 2;
         }
 
-        //link those matches in said arraylist format
-
-        for(int i = 0; i < tournamentInNestedArr.size()-1; i++){
-            List<Match> curRoundMatches = tournamentInNestedArr.get(i);
-            for(int n = 0; n < curRoundMatches.size(); n++) {
-                Match nextMatch = tournamentInNestedArr.get(i+1).get(n/2);
-                curRoundMatches.get(n).setNextMatch(nextMatch);
-                if(n%2 == 0 ) {
-                    nextMatch.setPreviousMatchA(curRoundMatches.get(n));
-                } else {
-                    nextMatch.setPreviousMatchB(curRoundMatches.get(n));
-                }
-            }
-        }
 
         //assign proper players to the draw, using another method, and then assign them to the first round matches
 
@@ -122,11 +124,6 @@ public class TournamentService {
             }
         }
 
-        //set the head to be stored in tournament
-
-        tournament.setRootMatch(tournamentInNestedArr.getLast().get(0));
-        tournament.setAllMatches(allMatch);
-
         // Create and save rounds
         List<Round> rounds = new ArrayList<>();
         for (int i = 0; i < tournamentInNestedArr.size(); i++) {
@@ -139,7 +136,7 @@ public class TournamentService {
         // Save rounds (matches will be cascaded)
         // If you have a RoundRepository, you can saveAll(rounds) here, otherwise rely on cascade
 
-        tournament.setRounds(rounds);
+        tournament.addRound(rounds);
 
         // Save all matches to the database
         matchRepo.saveAll(allMatch);
@@ -150,12 +147,32 @@ public class TournamentService {
 
     }
 
+    public void deinitializeTournament(Long tournamentId) {
+        Tournament tournament = tournamentRepo.findById(tournamentId)
+            .orElseThrow(() -> new IllegalArgumentException("Tournament with id " + tournamentId + " not found"));
+
+        if (!tournamentRepo.isTournamentInitialized(tournamentId)) {
+            throw new IllegalArgumentException("This tournament was never initialized, nothing to deinitailize");
+        }
+
+
+        
+        // Clear rounds
+        tournament.getRounds().clear();
+        
+
+        
+        // Save tournament
+        tournamentRepo.save(tournament);
+    }
+
     /**
      * Returns the tournament draw as a nested list of matches (one list per round).
      */
     public List<List<Match>> getTournamentDraw(Long tournamentId) {
         Tournament tournament = tournamentRepo.findById(tournamentId)
             .orElseThrow(() -> new IllegalArgumentException("Tournament with id " + tournamentId + " not found"));
+
 
         List<List<Match>> draw = new ArrayList<>();
         if (tournament.getRounds() != null) {
@@ -166,5 +183,6 @@ public class TournamentService {
         return draw;
     }
 
+    
 
 }
