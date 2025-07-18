@@ -28,9 +28,13 @@ public class Match {
     @GeneratedValue(strategy=GenerationType.IDENTITY)
     private Long id;
 
-    private String playerA;//currently just using strings to make it simple, will change later
+    @ManyToOne
+    @JoinColumn(name = "player_a_id")
+    private User playerA;
 
-    private String playerB;
+    @ManyToOne
+    @JoinColumn(name = "player_b_id")
+    private User playerB;
 
     private List<Integer> score;
 

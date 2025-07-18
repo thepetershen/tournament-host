@@ -4,7 +4,9 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -14,11 +16,13 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.tournamenthost.connect.frontend.with.backend.DTO.MatchDTO;
-import com.tournamenthost.connect.frontend.with.backend.DTO.PlayerRequest;
+import com.tournamenthost.connect.frontend.with.backend.DTO.UserDTO;
+import com.tournamenthost.connect.frontend.with.backend.DTO.UserGetRequest;
 import com.tournamenthost.connect.frontend.with.backend.DTO.TournamentDTO;
 import com.tournamenthost.connect.frontend.with.backend.DTO.TournamentRequest;
 import com.tournamenthost.connect.frontend.with.backend.Model.Match;
 import com.tournamenthost.connect.frontend.with.backend.Model.Tournament;
+import com.tournamenthost.connect.frontend.with.backend.Model.User;
 import com.tournamenthost.connect.frontend.with.backend.Service.TournamentService;
 
 @RestController
@@ -29,6 +33,11 @@ public class TournamentController {
 
     public TournamentController(TournamentService tournamentService) {
         this.tournamentService = tournamentService;
+    }
+
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<String> handleInvalidRequest(HttpMessageNotReadableException ex) {
+        return ResponseEntity.badRequest().body("Invalid request body: " + ex.getMostSpecificCause().getMessage());
     }
 
     // URL: POST /api/tournaments
@@ -91,24 +100,38 @@ public class TournamentController {
 
     // Add players (accepts a list, even if only one)
     @PostMapping("/{id}/players")
-    public ResponseEntity<?> addPlayers(@PathVariable Long id, @RequestBody List<PlayerRequest> playerRequests) {
+    public ResponseEntity<?> addPlayers(@PathVariable Long id, @RequestBody List<UserGetRequest> playerRequests) {
         try {
-            List<String> names = playerRequests.stream()
-                .map(PlayerRequest::getName)
-                .toList();
-            tournamentService.addPlayer(id, names);
+            for(UserGetRequest request: playerRequests){
+                Long userId = request.getId();
+                tournamentService.addPlayer(id, userId);
+            }
             return ResponseEntity.ok().build();
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(e.getMessage());
         }
     }
 
-    // Get all players
+
     @GetMapping("/{id}/players")
     public ResponseEntity<?> getPlayers(@PathVariable Long id) {
         try {
-            List<String> players = tournamentService.getPlayers(id);
-            return ResponseEntity.ok(players);
+            List<User> players = tournamentService.getPlayers(id);
+            List<UserDTO> playerDTOs = new ArrayList<>();
+            for (User user : players) {
+                List<TournamentDTO> tournamentDTOs = new ArrayList<>();
+                if (user.getTournaments() != null) {
+                    for (Tournament t : user.getTournaments()) {
+                        TournamentDTO tDto = new TournamentDTO();
+                        tDto.setId(t.getId());
+                        tDto.setName(t.getName());
+                        tournamentDTOs.add(tDto);
+                    }
+                }
+                UserDTO dto = new UserDTO(user.getId(), user.getEmail(), user.getUsername(), tournamentDTOs);
+                playerDTOs.add(dto);
+            }
+            return ResponseEntity.ok(playerDTOs);
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(e.getMessage());
         }
@@ -151,8 +174,16 @@ public class TournamentController {
             for (Match match : round) {
                 MatchDTO dto = new MatchDTO();
                 dto.setId(match.getId());
-                dto.setPlayerA(match.getPlayerA());
-                dto.setPlayerB(match.getPlayerB());
+                User playerA = match.getPlayerA();
+                User playerB = match.getPlayerB();
+                UserDTO playerADTO  = new UserDTO();
+                UserDTO playerBDTO  = new UserDTO();
+                if(playerA != null) playerADTO.setUsername(playerA.getUsername());
+                if(playerA != null) playerADTO.setId(playerA.getId());
+                if(playerB != null) playerBDTO.setUsername(playerB.getUsername());
+                if(playerB != null) playerBDTO.setId(playerB.getId());
+                dto.setPlayerA(playerADTO);
+                dto.setPlayerB(playerBDTO);
                 // Add more fields if needed
                 roundDTOs.add(dto);
             }

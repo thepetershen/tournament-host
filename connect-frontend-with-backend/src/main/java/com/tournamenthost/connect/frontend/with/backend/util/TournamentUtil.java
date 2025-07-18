@@ -4,6 +4,8 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
+import com.tournamenthost.connect.frontend.with.backend.Model.User;
+
 public class TournamentUtil {
     public static int nextPowerOfTwo(int n) {
         if (n < 1) return 1;
@@ -14,20 +16,20 @@ public class TournamentUtil {
         return power;
     }
 
-    public static ArrayList<String> generateDrawUsingSeeding(List<String> players, int matchAmount) {
-        ArrayList<String> copyOfPlayers = new ArrayList<>(players);
+    public static ArrayList<User> generateDrawUsingSeeding(List<User> players, int matchAmount) {
+        ArrayList<User> copyOfPlayers = new ArrayList<>(players);
         Collections.shuffle(copyOfPlayers);
         
         // create the top matches
-        ArrayList<String> answer = new ArrayList<>();
-        ArrayList<String> top = new ArrayList<>();
+        ArrayList<User> answer = new ArrayList<>();
+        ArrayList<User> top = new ArrayList<>();
 
         for(int i = 0; i < matchAmount; i++) {
             top.add(copyOfPlayers.get(0));
             copyOfPlayers.remove(0);
         }
 
-        ArrayList<String> bottom = new ArrayList<>(copyOfPlayers);
+        ArrayList<User> bottom = new ArrayList<>(copyOfPlayers);
 
         while(bottom.size() < matchAmount) {
             bottom.add(null);

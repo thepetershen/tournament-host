@@ -9,8 +9,8 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class MatchDTO {
     private Long id;
-    private String playerA;
-    private String playerB;
+    private UserDTO playerA;
+    private UserDTO playerB;
     // Add other fields as needed
 
     // Constructors, getters, setters

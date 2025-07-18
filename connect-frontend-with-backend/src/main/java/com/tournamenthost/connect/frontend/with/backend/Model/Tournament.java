@@ -12,6 +12,7 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
+import jakarta.persistence.JoinTable;
 import jakarta.persistence.ManyToMany;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.OneToOne;
@@ -37,15 +38,20 @@ public class Tournament {
         this.name = name;
     }
 
-    @ElementCollection
-    private List<String> players;
+    @ManyToMany
+    @JoinTable(
+        name = "user_tournaments",
+        joinColumns = @JoinColumn(name = "tournament_id"),
+        inverseJoinColumns = @JoinColumn(name = "user_id")
+    )
+    private List<User> players;
 
-    public void addPlayer(String player) {
+    public void addPlayer(User player) {
         players.add(player);
     }
 
-    public void addPlayer(List<String> players) {
-        for(String player: players) {
+    public void addPlayer(List<User> players) {
+        for(User player: players) {
             this.addPlayer(player);
         }
     }
@@ -71,7 +77,7 @@ public class Tournament {
 
    }
 
-   public Tournament(final Long id, final String name, final List<String> players, final List<Match> allMatches, final Match rootMatch, final List<Round> rounds) {
+   public Tournament(final Long id, final String name, final List<User> players, final List<Match> allMatches, final Match rootMatch, final List<Round> rounds) {
       this.id = id;
       this.name = name;
       this.players = players;

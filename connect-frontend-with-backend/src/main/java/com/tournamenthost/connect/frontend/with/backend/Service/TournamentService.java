@@ -10,8 +10,10 @@ import org.springframework.stereotype.Service;
 import com.tournamenthost.connect.frontend.with.backend.Model.Match;
 import com.tournamenthost.connect.frontend.with.backend.Model.Round;
 import com.tournamenthost.connect.frontend.with.backend.Model.Tournament;
+import com.tournamenthost.connect.frontend.with.backend.Model.User;
 import com.tournamenthost.connect.frontend.with.backend.Repository.MatchRepository;
 import com.tournamenthost.connect.frontend.with.backend.Repository.TournamentRepository;
+import com.tournamenthost.connect.frontend.with.backend.Repository.UserRepository;
 import com.tournamenthost.connect.frontend.with.backend.util.TournamentUtil;
 
 @Service
@@ -22,6 +24,9 @@ public class TournamentService {
 
     @Autowired 
     private MatchRepository matchRepo;
+
+    @Autowired
+    private UserRepository userRepo;
 
     public Tournament addTournament(String name) {
         // Check for duplicate tournament name (case and space insensitive)
@@ -56,24 +61,27 @@ public class TournamentService {
         return tournaments;
     }
 
-    public void addPlayer(Long tournamentId, String name) {
+    public void addPlayer(Long tournamentId, Long playerId) {
         Tournament tournament = tournamentRepo.findById(tournamentId)
             .orElseThrow(() -> new IllegalArgumentException("Tournament with id " + tournamentId + " not found"));
+        
+        User user = userRepo.findById(playerId)
+            .orElseThrow(() -> new IllegalArgumentException("Tournament with id " + playerId + " not found"));
 
         if(tournamentRepo.isTournamentInitialized(tournamentId)) {
             throw new IllegalArgumentException("Tournament with id " + tournamentId + "has already be initiated");
         }
-        tournament.addPlayer(name);
+        tournament.addPlayer(user);
         tournamentRepo.save(tournament);
     }
 
-    public void addPlayer(Long tournamentId, List<String> names) {
-        for(String name: names) {
+    public void addPlayer(Long tournamentId, List<Long> namesId) {
+        for(Long name: namesId) {
             this.addPlayer(tournamentId, name);
         }
     }
 
-    public List<String> getPlayers(Long tournamentId) {
+    public List<User> getPlayers(Long tournamentId) {
         Tournament tournament = tournamentRepo.findById(tournamentId)
             .orElseThrow(() -> new IllegalArgumentException("Tournament with id " + tournamentId + " not found"));
         return tournament.getPlayers();
@@ -83,7 +91,7 @@ public class TournamentService {
     public void initializeTournament(Long tournamentId) {
         Tournament tournament = tournamentRepo.findById(tournamentId)
             .orElseThrow(() -> new IllegalArgumentException("Tournament with id " + tournamentId + " not found"));
-        List<String> players = tournament.getPlayers();
+        List<User> players = tournament.getPlayers();
 
         if (players.size() <= 2) {
             throw new IllegalArgumentException("There are too few players, the begining of this event demands at least 3 players");
@@ -114,7 +122,7 @@ public class TournamentService {
 
         //assign proper players to the draw, using another method, and then assign them to the first round matches
 
-        ArrayList<String> draw = TournamentUtil.generateDrawUsingSeeding(players, matchAmount);
+        ArrayList<User> draw = TournamentUtil.generateDrawUsingSeeding(players, matchAmount);
         List<Match> bottomRoundMatches = tournamentInNestedArr.get(0);
         for(int i = 0; i < draw.size(); i++) {
             if(i%2 == 0) {
