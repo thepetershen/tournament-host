@@ -1,7 +1,9 @@
-package com.tournamenthost.connect.frontend.with.backend.Model;
+package com.tournamenthost.connect.frontend.with.backend.Model.Event;
 
 import jakarta.persistence.*;
 import java.util.List;
+
+import com.tournamenthost.connect.frontend.with.backend.Model.Match;
 
 @Entity
 public class Round {
@@ -16,8 +18,8 @@ public class Round {
     private int roundNumber;
 
     @ManyToOne
-    @JoinColumn(name = "tournament_id")
-    private Tournament tournament;
+    @JoinColumn(name = "event_id")
+    private SingleElimEvent event;
 
     // Getters and setters
     public Long getId() { return id; }
@@ -29,11 +31,11 @@ public class Round {
     public int getRoundNumber() { return roundNumber; }
     public void setRoundNumber(int roundNumber) { this.roundNumber = roundNumber; }
 
-    public Tournament getTournament() {
-        return tournament;
+    public SingleElimEvent getEvent() {
+        return event;
     }
 
-    public void setTournament(Tournament tournament) {
-        this.tournament = tournament;
+    public void setEvent(SingleElimEvent event) {
+        this.event = event;
     }
 }

@@ -5,6 +5,8 @@ import java.util.List;
 
 import org.hibernate.annotations.ManyToAny;
 
+import com.tournamenthost.connect.frontend.with.backend.Model.Event.SingleElimEvent;
+
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -25,7 +27,7 @@ public class User {
 
     private String password;
 
-    @ManyToMany(mappedBy = "players")
+    @ManyToMany(mappedBy = "users")
     private List<Tournament> tournaments;
 
     public Long getId(){
@@ -55,6 +57,7 @@ public class User {
     public void setPassword(String password) {
         this.password = password;
     }
+
     public List<Tournament> getTournaments() {
         return tournaments;
     }
@@ -66,7 +69,7 @@ public class User {
     }
 
     public User () {
-        
+
     }
 
     public User(String email, String username, String password) {

@@ -3,6 +3,9 @@ package com.tournamenthost.connect.frontend.with.backend.Model;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.tournamenthost.connect.frontend.with.backend.Model.Event.BaseEvent;
+import com.tournamenthost.connect.frontend.with.backend.Model.Event.SingleElimEvent;
+
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -40,7 +43,7 @@ public class Match {
 
 
     @ManyToOne
-    private Tournament tournament;
+    private BaseEvent event;
 
 
 }

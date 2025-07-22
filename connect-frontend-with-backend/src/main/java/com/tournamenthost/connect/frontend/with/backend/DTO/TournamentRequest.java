@@ -1,12 +1,19 @@
 package com.tournamenthost.connect.frontend.with.backend.DTO;
 
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
-
-@Data
-@NoArgsConstructor
-@AllArgsConstructor
 public class TournamentRequest {
     private String name;
+
+    public TournamentRequest() {}
+
+    public TournamentRequest(String name) {
+        this.name = name;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
 }

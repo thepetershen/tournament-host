@@ -1,86 +1,73 @@
 package com.tournamenthost.connect.frontend.with.backend.Model;
 
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import jakarta.persistence.*;
 
-import jakarta.persistence.CascadeType;
-import jakarta.persistence.ElementCollection;
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.JoinTable;
-import jakarta.persistence.ManyToMany;
-import jakarta.persistence.OneToMany;
-import jakarta.persistence.OneToOne;
-import jakarta.persistence.Table;
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-/*
- * Thought this is called Tournament, it implements a single elim tournament, this will be changed later
- */
+import java.util.ArrayList;
+import java.util.List;
+
+import com.tournamenthost.connect.frontend.with.backend.Model.Event.BaseEvent;
+import com.tournamenthost.connect.frontend.with.backend.Model.Event.SingleElimEvent;
+
 @Entity
-@Getter
-@Table(name = "tournaments")
 public class Tournament {
+
     @Id
-    @GeneratedValue(strategy=GenerationType.IDENTITY)
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     private String name;
 
-    public void setName(String name){
-        this.name = name;
-    }
-
+    // Many users can participate in many tournaments
     @ManyToMany
     @JoinTable(
-        name = "user_tournaments",
+        name = "tournament_users",
         joinColumns = @JoinColumn(name = "tournament_id"),
         inverseJoinColumns = @JoinColumn(name = "user_id")
     )
-    private List<User> players;
+    private List<User> users;
 
-    public void addPlayer(User player) {
-        players.add(player);
-    }
-
-    public void addPlayer(List<User> players) {
-        for(User player: players) {
-            this.addPlayer(player);
-        }
-    }
-
+    // One tournament can have many events
     @OneToMany(mappedBy = "tournament", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<Round> rounds;
+    private List<BaseEvent> events;
 
+    // Getters and setters
+    public Long getId() {
+        return id;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public List<User> getUsers() {
+        return users;
+    }
+
+    public void addUsers(User user) {
+        this.users.add(user);
+    }
     
-    public void addRound(Round round) {
-        rounds.add(round);
+    public List<BaseEvent> getEvents() {
+        return events;
     }
 
-    public void addRound(List<Round> rounds) {
-        for (Round round : rounds) {
-            this.addRound(round);
-        }
+    public void addEvent(BaseEvent event) {
+        this.events.add(event);
     }
 
+    // Constructors
+    public Tournament() {
+        this.users = new ArrayList<>();
+        this.events = new ArrayList<>();
+    }
 
-   public Tournament() {
-        players = new ArrayList<>();
-        rounds = new ArrayList<>();
-
-   }
-
-   public Tournament(final Long id, final String name, final List<User> players, final List<Match> allMatches, final Match rootMatch, final List<Round> rounds) {
-      this.id = id;
-      this.name = name;
-      this.players = players;
-      this.rounds = rounds;
-   }
+    public Tournament(String name) {
+        this.name = name;
+        this.users = new ArrayList<>();
+        this.events = new ArrayList<>();
+    }
 }
