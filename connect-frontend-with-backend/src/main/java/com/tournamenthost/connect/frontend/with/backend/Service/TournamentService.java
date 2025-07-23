@@ -5,9 +5,11 @@ import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
 
+import com.tournamenthost.connect.frontend.with.backend.Model.Match;
 import com.tournamenthost.connect.frontend.with.backend.Model.Tournament;
 import com.tournamenthost.connect.frontend.with.backend.Model.User;
 import com.tournamenthost.connect.frontend.with.backend.Model.Event.BaseEvent;
@@ -26,6 +28,9 @@ public class TournamentService {
 
     @Autowired
     private UserRepository userRepo;
+
+    @Autowired
+    private EventService eventService;
 
     public Tournament createTournament(String name) {
         if (tournamentRepo.existsByNameIgnoreCaseAndSpaces(name)) {
@@ -59,6 +64,20 @@ public class TournamentService {
         }
 
         return answer;
+    }
+
+    public List<Match> getAllMatches (Long tournamentId) {
+        Tournament tournament = tournamentRepo.findById(tournamentId)
+            .orElseThrow(() -> new IllegalArgumentException("Tournament with id " + tournamentId + " not found"));
+
+        List<Match> answer = new ArrayList<>();
+        for(BaseEvent cur: tournament.getEvents()){
+            Long curId = cur.getId();
+            answer.addAll(eventService.getMatches(curId));
+        }
+
+        return answer;
+
     }
 
     public Tournament addEventToTournament(Long tournamentId, BaseEvent event) {

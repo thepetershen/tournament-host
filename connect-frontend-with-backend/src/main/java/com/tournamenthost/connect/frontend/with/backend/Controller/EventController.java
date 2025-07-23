@@ -139,6 +139,37 @@ public class EventController {
         }
     }
 
+    @GetMapping("/{id}/matches")
+    public ResponseEntity<?> getMatches(@PathVariable Long id) {
+        try {
+            List<Match> matches = eventService.getMatches(id);
+            List<MatchDTO> matchDTOs = new ArrayList<>();
+            for (Match match : matches) {
+                MatchDTO dto = new MatchDTO();
+                dto.setId(match.getId());
+                User playerA = match.getPlayerA();
+                User playerB = match.getPlayerB();
+                UserDTO playerADTO = new UserDTO();
+                UserDTO playerBDTO = new UserDTO();
+                if (playerA != null) {
+                    playerADTO.setUsername(playerA.getUsername());
+                    playerADTO.setId(playerA.getId());
+                }
+                if (playerB != null) {
+                    playerBDTO.setUsername(playerB.getUsername());
+                    playerBDTO.setId(playerB.getId());
+                }
+                dto.setPlayerA(playerADTO);
+                dto.setPlayerB(playerBDTO);
+                // Add more fields if needed
+                matchDTOs.add(dto);
+            }
+            return ResponseEntity.ok(matchDTOs);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
     // Initialize event (stub)
     @PostMapping("/{id}/initialize")
     public ResponseEntity<?> initializeEvent(@PathVariable Long id) {

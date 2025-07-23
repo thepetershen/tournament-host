@@ -34,9 +34,9 @@ function createMatchesForRound(roundDraw, isFirstRound,curSpacing) {
             <SpacingContext.Provider value = {MATCH_HEIGHT}>
                 <SingleElimEventMatch
                     key={`match-${index}`}
-                    playerTop={match.playerA}
-                    playerBottom={match.playerB}
-                    winner={match.winner}
+                    playerTop={match.playerA.username}
+                    playerBottom={match.playerB.username}
+                    winner={match.playerA.username}
                     arrOfScore={match.score}
                     nextMatch={roundDraw.length !== 1}
                     prevMatch={!isFirstRound}

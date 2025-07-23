@@ -1,9 +1,11 @@
 package com.tournamenthost.connect.frontend.with.backend.Controller;
 
 import com.tournamenthost.connect.frontend.with.backend.DTO.EventDTO;
+import com.tournamenthost.connect.frontend.with.backend.DTO.MatchDTO;
 import com.tournamenthost.connect.frontend.with.backend.DTO.TournamentDTO;
 import com.tournamenthost.connect.frontend.with.backend.DTO.TournamentRequest;
 import com.tournamenthost.connect.frontend.with.backend.DTO.UserDTO;
+import com.tournamenthost.connect.frontend.with.backend.Model.Match;
 import com.tournamenthost.connect.frontend.with.backend.Model.Tournament;
 import com.tournamenthost.connect.frontend.with.backend.Model.User;
 import com.tournamenthost.connect.frontend.with.backend.Model.Event.BaseEvent;
@@ -72,9 +74,8 @@ public class TournamentController {
     @GetMapping("/{id}/users")
     public ResponseEntity<List<UserDTO>> getAllUser(@PathVariable Long id){
         try {
-            Tournament tournament = tournamentService.getTournament(id);
             List<UserDTO> answer = new ArrayList<>();
-            for(User user: tournament.getUsers()){
+            for(User user: tournamentService.getUsers(id)){
                 UserDTO dto = new UserDTO();
                 dto.setId(user.getId());
                 dto.setUsername(user.getUsername());
@@ -116,6 +117,37 @@ public class TournamentController {
                 eventDTOs.add(dto);
             }
             return ResponseEntity.ok(eventDTOs);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    @GetMapping("/{id}/matches")
+    public ResponseEntity<?> getMatches(@PathVariable Long id) {
+        try {
+            List<Match> matches = tournamentService.getAllMatches(id);
+            List<MatchDTO> matchDTOs = new ArrayList<>();
+            for (Match match : matches) {
+                MatchDTO dto = new MatchDTO();
+                dto.setId(match.getId());
+                User playerA = match.getPlayerA();
+                User playerB = match.getPlayerB();
+                UserDTO playerADTO = new UserDTO();
+                UserDTO playerBDTO = new UserDTO();
+                if (playerA != null) {
+                    playerADTO.setUsername(playerA.getUsername());
+                    playerADTO.setId(playerA.getId());
+                }
+                if (playerB != null) {
+                    playerBDTO.setUsername(playerB.getUsername());
+                    playerBDTO.setId(playerB.getId());
+                }
+                dto.setPlayerA(playerADTO);
+                dto.setPlayerB(playerBDTO);
+                // Add more fields if needed
+                matchDTOs.add(dto);
+            }
+            return ResponseEntity.ok(matchDTOs);
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(e.getMessage());
         }

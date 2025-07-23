@@ -27,7 +27,7 @@ public class User {
 
     private String password;
 
-    @ManyToMany(mappedBy = "users")
+    @ManyToMany
     private List<Tournament> tournaments;
 
     public Long getId(){

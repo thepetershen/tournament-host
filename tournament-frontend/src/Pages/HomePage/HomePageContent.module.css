@@ -1,0 +1,49 @@
+.pageContainer {
+    margin: 40px auto;
+    max-width: 700px;
+    padding: 24px;
+    background: #f9f9f9;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+}
+
+.heading {
+    text-align: center;
+    margin-bottom: 32px;
+    font-size: 2rem;
+}
+
+.empty {
+    text-align: center;
+    color: #888;
+}
+
+.tournamentCard {
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+    margin-bottom: 28px;
+    padding: 24px 32px;
+    display: block;
+    box-sizing: border-box; /* Add this line */
+}
+
+.tournamentName {
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: #1976d2;
+    text-decoration: none;
+    margin-bottom: 8px;
+    display: inline-block;
+}
+
+.tournamentDetails {
+    color: #555;
+    margin-top: 8px;
+    font-size: 1.1rem;
+}
+
+.tournamentDetails span {
+    display: block;
+    margin-bottom: 4px;
+}

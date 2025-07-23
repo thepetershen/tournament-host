@@ -96,6 +96,28 @@ public class EventService {
         return event.getPlayers();
     }
 
+    public List<Match> getMatches(Long eventId) {
+        BaseEvent event = eventRepo.findById(eventId)
+            .orElseThrow(() -> new IllegalArgumentException("Event with id " + eventId + " not found"));
+
+        if  (!event.isEventInitialized()){
+            throw new IllegalArgumentException("This event hasn't been initialized, please initialize it first");
+        }
+
+        if(event instanceof SingleElimEvent singleElim) {
+            List<Round> rounds = singleElim.getRounds();
+            List<Match> answer = new ArrayList<>();
+            for(Round r: rounds){
+                answer.addAll(r.getMatches());
+            }
+            return answer;
+        } else {
+            throw new IllegalArgumentException("Unsupported event type");
+        }
+
+    
+    }
+
     public void initializeEvent(Long eventId) {
         BaseEvent event = eventRepo.findById(eventId)
             .orElseThrow(() -> new IllegalArgumentException("Event with id " + eventId + " not found"));
@@ -172,6 +194,8 @@ public class EventService {
 
         if (!event.isEventInitialized()) {
             throw new IllegalArgumentException("This event was never initialized, nothing to deinitialize");
+        } else {
+            event.unInitiateEvent();
         }
 
         // Clear rounds
