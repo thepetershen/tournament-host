@@ -3,6 +3,7 @@ package com.tournamenthost.connect.frontend.with.backend.Service;
 import java.util.Optional;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import com.tournamenthost.connect.frontend.with.backend.Model.User;
@@ -12,6 +13,9 @@ import com.tournamenthost.connect.frontend.with.backend.Repository.UserRepositor
 public class UserService {
     
     @Autowired
+    private BCryptPasswordEncoder bCryptPasswordEncoder;
+
+    @Autowired
     private UserRepository userRepo;
 
     public User createUser(String username, String email, String password) {
@@ -19,6 +23,8 @@ public class UserService {
             throw new IllegalArgumentException("User with email " +email + " already exists");
         }
         User user = new User(email, username, password);
+        user.setPassword(bCryptPasswordEncoder.encode(user.getPassword()));
+
         return userRepo.save(user);
     }
 
