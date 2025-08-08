@@ -18,34 +18,23 @@ public class UserService {
     @Autowired
     private UserRepository userRepo;
 
-    public User createUser(String username, String email, String password) {
-        if(userRepo.existsByEmail(email)) {
-            throw new IllegalArgumentException("User with email " +email + " already exists");
+    public User setUser(User user, String username, String name, String password) {
+        if (username != null && !username.equals(user.getUsername())) {
+            if (userRepo.existsByUsername(username)) {
+                throw new IllegalArgumentException("User with username " + username + " already exists");
+            }
+            user.setUsername(username);
         }
-        User user = new User(email, username, password);
-        user.setPassword(bCryptPasswordEncoder.encode(user.getPassword()));
+
+        if (name != null) {
+            user.setName(name);
+        }
+
+        if (password != null && !password.isEmpty()) {
+            user.setPassword(bCryptPasswordEncoder.encode(password));
+        }
 
         return userRepo.save(user);
-    }
-
-    public User getUser(Long id) {
-        User answer = userRepo.findById(id)
-            .orElseThrow(() -> new IllegalArgumentException("User with id " + id + " not found"));
-        
-        return answer;
-    }
-
-    public User setUser(Long id, String username, String email, String password) {
-        User user = userRepo.findById(id)
-            .orElseThrow(() -> new IllegalArgumentException("User with id " + id + " not found"));
-
-        if(userRepo.existsByEmail(email) && email != user.getEmail()) {
-            throw new IllegalArgumentException("User with email " +email + " already exists");
-        }
-        user.setEmail(email);
-        user.setPassword(password);
-        user.setUsername(username);
-        return user;
     }
 
 }   

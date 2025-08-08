@@ -130,7 +130,7 @@ public class EventController {
                         tournamentDTOs.add(tDto);
                     }
                 }
-                UserDTO dto = new UserDTO(user.getId(), user.getEmail(), user.getUsername(), tournamentDTOs);
+                UserDTO dto = new UserDTO(user.getId(), user.getUsername(), user.getName(), tournamentDTOs);
                 playerDTOs.add(dto);
             }
             return ResponseEntity.ok(playerDTOs);
@@ -154,10 +154,12 @@ public class EventController {
                 if (playerA != null) {
                     playerADTO.setUsername(playerA.getUsername());
                     playerADTO.setId(playerA.getId());
+                    playerADTO.setName(playerA.getName()); // Add name
                 }
                 if (playerB != null) {
                     playerBDTO.setUsername(playerB.getUsername());
                     playerBDTO.setId(playerB.getId());
+                    playerBDTO.setName(playerB.getName()); // Add name
                 }
                 dto.setPlayerA(playerADTO);
                 dto.setPlayerB(playerBDTO);
@@ -211,10 +213,16 @@ public class EventController {
                 User playerB = match.getPlayerB();
                 UserDTO playerADTO  = new UserDTO();
                 UserDTO playerBDTO  = new UserDTO();
-                if(playerA != null) playerADTO.setUsername(playerA.getUsername());
-                if(playerA != null) playerADTO.setId(playerA.getId());
-                if(playerB != null) playerBDTO.setUsername(playerB.getUsername());
-                if(playerB != null) playerBDTO.setId(playerB.getId());
+                if(playerA != null) {
+                    playerADTO.setUsername(playerA.getUsername());
+                    playerADTO.setId(playerA.getId());
+                    playerADTO.setName(playerA.getName()); // Add name
+                }
+                if(playerB != null) {
+                    playerBDTO.setUsername(playerB.getUsername());
+                    playerBDTO.setId(playerB.getId());
+                    playerBDTO.setName(playerB.getName()); // Add name
+                }
                 dto.setPlayerA(playerADTO);
                 dto.setPlayerB(playerBDTO);
                 // Add more fields if needed

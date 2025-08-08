@@ -1,24 +1,24 @@
 package com.tournamenthost.connect.frontend.with.backend.DTO;
 
 public class RegisterUserDTO {
-    private String email;
+    private String username;
     private String password;
-    private String fullName;
+    private String name;
 
     public RegisterUserDTO() {}
 
-    public RegisterUserDTO(String email, String password, String fullName) {
-        this.email = email;
+    public RegisterUserDTO(String username, String password, String name) {
+        this.username = username;
         this.password = password;
-        this.fullName = fullName;
+        this.name = name;
     }
 
-    public String getEmail() {
-        return email;
+    public String getUsername() {
+        return username;
     }
 
-    public void setEmail(String email) {
-        this.email = email;
+    public void setUsername(String username) {
+        this.username = username;
     }
 
     public String getPassword() {
@@ -29,11 +29,11 @@ public class RegisterUserDTO {
         this.password = password;
     }
 
-    public String getFullName() {
-        return fullName;
+    public String getName() {
+        return name;
     }
 
-    public void setFullName(String fullName) {
-        this.fullName = fullName;
+    public void setName(String name) {
+        this.name = name;
     }
 }

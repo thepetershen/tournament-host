@@ -4,16 +4,16 @@ import java.util.List;
 
 public class UserDTO {
     private Long id;
-    private String email;
     private String username;
+    private String name;
     private List<TournamentDTO> tournaments;
 
     public UserDTO() {}
 
-    public UserDTO(Long id, String email, String username, List<TournamentDTO> tournaments) {
+    public UserDTO(Long id, String username, String name, List<TournamentDTO> tournaments) {
         this.id = id;
-        this.email = email;
         this.username = username;
+        this.name = name;
         this.tournaments = tournaments;
     }
 
@@ -25,20 +25,20 @@ public class UserDTO {
         this.id = id;
     }
 
-    public String getEmail() {
-        return email;
-    }
-
-    public void setEmail(String email) {
-        this.email = email;
-    }
-
     public String getUsername() {
         return username;
     }
 
     public void setUsername(String username) {
         this.username = username;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
     }
 
     public List<TournamentDTO> getTournaments() {

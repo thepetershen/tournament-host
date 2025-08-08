@@ -30,8 +30,8 @@ public class AuthenticationService {
 
     public User signup(RegisterUserDTO input) {
         User user = new User();
-        user.setUsername(input.getFullName());
-        user.setEmail(input.getEmail());
+        user.setUsername(input.getUsername());
+        user.setName(input.getName());
         user.setPassword(passwordEncoder.encode(input.getPassword()));
         // Set any other fields required by your User model here
 
@@ -41,12 +41,12 @@ public class AuthenticationService {
     public User authenticate(LoginUserDTO input) {
         authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(
-                        input.getEmail(),
+                        input.getUsername(),
                         input.getPassword()
                 )
         );
 
-        return userRepository.findByEmail(input.getEmail())
+        return userRepository.findByUsername(input.getUsername())
                 .orElseThrow();
     }
 }

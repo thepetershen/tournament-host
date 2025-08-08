@@ -26,11 +26,11 @@ public class User implements UserDetails {
     @Column(nullable = false)
     private Long id;
 
-    @Column(nullable = false)
-    private String username; // This will serve as fullName
+    @Column(nullable = false, unique = true, length = 100)
+    private String username; // This will serve as email
 
-    @Column(unique = true, length = 100, nullable = false)
-    private String email;
+    @Column(length = 100, nullable = false)
+    private String name;
 
     @Column(nullable = false)
     private String password;
@@ -48,9 +48,9 @@ public class User implements UserDetails {
 
     public User() {}
 
-    public User(String email, String username, String password) {
-        this.email = email;
+    public User(String username, String name, String password) {
         this.username = username;
+        this.name = name;
         this.password = password;
         this.tournaments = new ArrayList<>();
     }
@@ -68,12 +68,12 @@ public class User implements UserDetails {
         this.username = fullName;
     }
 
-    public String getEmail() {
-        return email;
+    public String getName() {
+        return name;
     }
 
-    public void setEmail(String email) {
-        this.email = email;
+    public void setName(String name) {
+        this.name = name;
     }
 
     public String getPassword() {

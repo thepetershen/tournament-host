@@ -32,7 +32,7 @@ public class TournamentController {
     }
 
     @PostMapping
-    public ResponseEntity<TournamentDTO> createTournament(@RequestBody TournamentRequest tournamentRequest) {
+    public ResponseEntity<?> createTournament(@RequestBody TournamentRequest tournamentRequest) {
         try {
             Tournament tournament = tournamentService.createTournament(tournamentRequest.getName());
             TournamentDTO dto = new TournamentDTO();
@@ -40,7 +40,7 @@ public class TournamentController {
             dto.setId(tournament.getId());
             return ResponseEntity.ok(dto);
         } catch (IllegalArgumentException e) {
-            return ResponseEntity.badRequest().body(null);
+            return ResponseEntity.badRequest().body(e.getMessage());
         }
     }
 
@@ -79,6 +79,7 @@ public class TournamentController {
                 UserDTO dto = new UserDTO();
                 dto.setId(user.getId());
                 dto.setUsername(user.getUsername());
+                dto.setName(user.getName()); // Add name
                 answer.add(dto);
             }
             return ResponseEntity.ok(answer);
@@ -137,10 +138,12 @@ public class TournamentController {
                 if (playerA != null) {
                     playerADTO.setUsername(playerA.getUsername());
                     playerADTO.setId(playerA.getId());
+                    playerADTO.setName(playerA.getName()); // Add name
                 }
                 if (playerB != null) {
                     playerBDTO.setUsername(playerB.getUsername());
                     playerBDTO.setId(playerB.getId());
+                    playerBDTO.setName(playerB.getName()); // Add name
                 }
                 dto.setPlayerA(playerADTO);
                 dto.setPlayerB(playerBDTO);
