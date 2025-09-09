@@ -10,5 +10,4 @@ import lombok.NoArgsConstructor;
 public class EventRequest {
     private String name;
     private String eventType;
-    private Long tournamentId;
 }

@@ -1,0 +1,49 @@
+.registerContainer {
+  max-width: 400px;
+  margin: 60px auto;
+  padding: 2rem 2.5rem;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 2px 16px rgba(0,0,0,0.08);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.registerForm {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 1.2rem;
+}
+
+.input {
+  width: 100%;
+  padding: 0.6rem 0.8rem;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  font-size: 1rem;
+  margin-top: 0.3rem;
+}
+
+.button {
+  background: #2d72d9;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 0.7rem 0;
+  font-size: 1.1rem;
+  cursor: pointer;
+  margin-top: 0.5rem;
+  transition: background 0.2s;
+}
+.button:hover {
+  background: #1a4e96;
+}
+
+.error {
+  color: #d32f2f;
+  margin-top: 0.5rem;
+  font-size: 0.98rem;
+  text-align: center;
+}

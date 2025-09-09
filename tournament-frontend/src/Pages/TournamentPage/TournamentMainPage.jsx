@@ -7,13 +7,21 @@ import { Link } from "react-router-dom";
 function TournamentPage() {
     const [tournaments, setTournaments] = useState([]);
 
+    // Create an axios instance with Authorization header from localStorage
+    const token = localStorage.getItem('token');
+    const authAxios = axios.create({
+        baseURL: 'http://localhost:8080',
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+
     useEffect(() => {
         fetchTournaments();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     const fetchTournaments = async () => {
         try {
-            const response = await axios.get("http://localhost:8080/api/tournaments");
+            const response = await authAxios.get("/api/tournaments");
             setTournaments(response.data)
         } catch (error) {
             console.error('Error fetching tournaments:', error);

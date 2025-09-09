@@ -10,26 +10,34 @@ function TournamentIndividualPage() {
   const [matches, setMatches] = useState([]);
   const [players, setPlayers] = useState([]);
 
+  // Create an axios instance with Authorization header from localStorage
+  const token = localStorage.getItem('token');
+  const authAxios = axios.create({
+    baseURL: 'http://localhost:8080',
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+
   useEffect(() => {
     // Fetch tournament general info
-    axios.get(`http://localhost:8080/api/tournaments/${tournamentId}`)
+    authAxios.get(`/api/tournaments/${tournamentId}`)
       .then(res => setTournament(res.data))
       .catch(err => console.error(err));
 
     // Fetch events
-    axios.get(`http://localhost:8080/api/tournaments/${tournamentId}/events`)
+    authAxios.get(`/api/tournaments/${tournamentId}/events`)
       .then(res => setEvents(res.data))
       .catch(err => console.error(err));
 
     // Fetch matches
-    axios.get(`http://localhost:8080/api/tournaments/${tournamentId}/matches`)
+    authAxios.get(`/api/tournaments/${tournamentId}/matches`)
       .then(res => setMatches(res.data))
       .catch(err => console.error(err));
 
     // Fetch players
-    axios.get(`http://localhost:8080/api/tournaments/${tournamentId}/users`)
+    authAxios.get(`/api/tournaments/${tournamentId}/users`)
       .then(res => setPlayers(res.data))
       .catch(err => console.error(err));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tournamentId]);
 
   return (

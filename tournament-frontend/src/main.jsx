@@ -8,19 +8,25 @@ import TournamentControl from "./Pages/TournamentControl/TournamentControl";
 import EventPage from "./Pages/Event/EventPage.jsx";
 import NotFoundPage from './Pages/NotFoundPage';
 import Layout from './Pages/Layout';
+import RegisterPage from './Pages/LoginAndRegistration/RegisterPage';
+import LoginSuccessPage from './Pages/LoginAndRegistration/LoginSuccessPage';
+import LoginPage from './Pages/LoginAndRegistration/LoginPage';
 
 
 const router = createBrowserRouter([
   {
     path: "/",
     element: <Layout />, // Layout wraps all child routes
-    errorElement: <NotFoundPage />,
+    errorElement: <NotFoundPage />, 
     children: [
       { index: true, element: <HomePageContent /> },
       { path: "tournament", element: <TournamentPage /> },
       { path: "tournament/:tournamentId", element: <TournamentIndividualPage /> },
       { path: "tournamentControl", element: <TournamentControl/>},
-      { path: "event/:eventId", element: <EventPage/>}
+      { path: "event/:eventId", element: <EventPage/>},
+      { path: "register", element: <RegisterPage/> },
+      { path: "login-success", element: <LoginSuccessPage/> },
+      { path: "login", element: <LoginPage/> }
       // Add more child routes here
     ],
   },

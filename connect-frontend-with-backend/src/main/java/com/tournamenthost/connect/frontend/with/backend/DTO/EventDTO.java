@@ -9,5 +9,6 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class EventDTO {
     private String name;
-    private Long id;
+    private int id;
+
 }

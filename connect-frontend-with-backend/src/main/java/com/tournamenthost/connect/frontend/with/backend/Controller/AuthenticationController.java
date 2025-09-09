@@ -26,22 +26,29 @@ public class AuthenticationController {
     }
 
     @PostMapping("/signup")
-    public ResponseEntity<User> register(@RequestBody RegisterUserDTO registerUserDto) {
-        User registeredUser = authenticationService.signup(registerUserDto);
+    public ResponseEntity<?> register(@RequestBody RegisterUserDTO registerUserDto) {
+        try {
+            User registeredUser = authenticationService.signup(registerUserDto);
 
-        return ResponseEntity.ok(registeredUser);
+            return ResponseEntity.ok(registeredUser);
+        } catch (Exception e) {
+            return ResponseEntity.status(401).body("registration failed");
+        }
     }
 
     @PostMapping("/login")
-    public ResponseEntity<LoginResponse> authenticate(@RequestBody LoginUserDTO loginUserDto) {
-        User authenticatedUser = authenticationService.authenticate(loginUserDto);
+    public ResponseEntity<?> authenticate(@RequestBody LoginUserDTO loginUserDto) {
+        try {
+            User authenticatedUser = authenticationService.authenticate(loginUserDto);
+            String jwtToken = jwtService.generateToken(authenticatedUser);
 
-        String jwtToken = jwtService.generateToken(authenticatedUser);
+            LoginResponse loginResponse = new LoginResponse();
+            loginResponse.setToken(jwtToken);
+            loginResponse.setExpiresIn(jwtService.getExpirationTime());
 
-        LoginResponse loginResponse = new LoginResponse();
-        loginResponse.setToken(jwtToken);
-        loginResponse.setExpiresIn(jwtService.getExpirationTime());
-
-        return ResponseEntity.ok(loginResponse);
+            return ResponseEntity.ok(loginResponse);
+        } catch (Exception e) {
+            return ResponseEntity.status(401).body("Authenitcation Failed"); // or a custom error response
+        }
     }
 }

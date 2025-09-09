@@ -6,7 +6,8 @@ import com.tournamenthost.connect.frontend.with.backend.Model.User;
 import java.util.List;
 
 public interface Event {
-    Long getId();
+    int getIndex();
+    void setIndex(int index);
     String getName();
     void setName(String name);
     List<User> getPlayers();
