@@ -1,18 +1,11 @@
 import React, { useEffect, useState } from "react";
 import SingleElimBracket from "../../Components/SingleElimEvent/SingleElimBracket.jsx";
 import styles from "./TournamentMainPage.module.css";
-import axios from "axios";
+import authAxios from "../../utils/authAxios";
 import { Link } from "react-router-dom";
 
 function TournamentPage() {
     const [tournaments, setTournaments] = useState([]);
-
-    // Create an axios instance with Authorization header from localStorage
-    const token = localStorage.getItem('token');
-    const authAxios = axios.create({
-        baseURL: 'http://localhost:8080',
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-    });
 
     useEffect(() => {
         fetchTournaments();
@@ -52,3 +45,4 @@ function TournamentPage() {
 }
 
 export default TournamentPage;
+// Already uses /api/tournaments endpoint from tournament controller

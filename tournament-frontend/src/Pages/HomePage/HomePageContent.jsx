@@ -1,8 +1,7 @@
-
 import { Link } from "react-router-dom";
 import React, {useEffect, useState} from "react";
 import styles from "./HomePageContent.module.css";
-import axios from "axios";
+import authAxios from "../../utils/authAxios";
 
 function HomePageContent() {
     const [tournaments, setTournaments] = useState([]);
@@ -13,11 +12,6 @@ function HomePageContent() {
 
     const fetchTournaments = async () => {
         try {
-            const token = localStorage.getItem('token');
-            const authAxios = axios.create({
-                baseURL: 'http://localhost:8080',
-                headers: token ? { Authorization: `Bearer ${token}` } : {},
-            });
             const response = await authAxios.get("/api/tournaments");
             setTournaments(response.data)
         } catch (error) {
@@ -51,3 +45,4 @@ function HomePageContent() {
 }
 
 export default HomePageContent;
+// Already uses /api/tournaments endpoint from tournament controller

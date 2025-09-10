@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useParams,Link } from "react-router-dom";
-import axios from "axios";
+import authAxios from "../../utils/authAxios";
 
 function TournamentIndividualPage() {
   const { tournamentId } = useParams();
@@ -9,13 +9,6 @@ function TournamentIndividualPage() {
   const [events, setEvents] = useState([]);
   const [matches, setMatches] = useState([]);
   const [players, setPlayers] = useState([]);
-
-  // Create an axios instance with Authorization header from localStorage
-  const token = localStorage.getItem('token');
-  const authAxios = axios.create({
-    baseURL: 'http://localhost:8080',
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
-  });
 
   useEffect(() => {
     // Fetch tournament general info
@@ -67,7 +60,7 @@ function TournamentIndividualPage() {
             <ul>
               {events.map(event => (
                 <div>
-                    <Link to={`/event/${event.id}`}>{event.name}</Link>
+                    <Link to={`/tournament/${tournamentId}/event/${event.id}/draw`}>{event.name}</Link>
                     <br/>
                 </div>
               ))}

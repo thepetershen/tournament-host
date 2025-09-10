@@ -19,7 +19,7 @@ function LoginPage() {
       });
       const { token } = response.data;
       localStorage.setItem("token", token);
-      navigate("/tournaments"); // Redirect to tournaments page after login
+      navigate("/tournament"); // Redirect to tournaments page after login
     } catch (err) {
       setError("Invalid username or password");
     }
