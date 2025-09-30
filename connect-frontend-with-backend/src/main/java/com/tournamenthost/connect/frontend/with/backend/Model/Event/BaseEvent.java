@@ -20,6 +20,16 @@ public abstract class BaseEvent implements Event {
         return id;
     }
 
+    private int index;
+
+    public int getIndex() {
+        return index;
+    }
+
+    public void setIndex(int index) {
+        this.index = index;
+    }
+
     private String name;
 
     public void setName(String name){
@@ -85,11 +95,12 @@ public abstract class BaseEvent implements Event {
     }
 
     // Optionally, add a constructor with arguments if needed
-    public BaseEvent(String name, List<User> players, Tournament tournament) {
+    public BaseEvent(String name, List<User> players, Tournament tournament, int index) {
         this.initialized =false;
         this.name = name;
         this.players = (players != null) ? players : new ArrayList<>();
         this.tournament = tournament;
+        this.index = index;
     }
 
 

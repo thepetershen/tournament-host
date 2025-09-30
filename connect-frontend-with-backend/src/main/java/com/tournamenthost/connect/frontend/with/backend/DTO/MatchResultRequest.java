@@ -8,11 +8,7 @@ import java.util.List;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class MatchDTO {
-    private Long id;
-    private UserDTO playerA;
-    private UserDTO playerB;
-    private UserDTO winner;
+public class MatchResultRequest {
+    private Long winnerId;
     private List<Integer> score;
-    private boolean completed;
 }

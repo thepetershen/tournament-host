@@ -12,18 +12,9 @@ import jakarta.persistence.OneToMany;
 @Entity
 @DiscriminatorValue("SINGLE_ELIM")
 public class SingleElimEvent extends BaseEvent {
-    private int index; // Unique within tournament
 
     @OneToMany(mappedBy = "event", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Round> rounds;
-
-    public int getIndex() {
-        return index;
-    }
-
-    public void setIndex(int index) {
-        this.index = index;
-    }
 
     public void addRound(Round round) {
         rounds.add(round);
@@ -45,8 +36,7 @@ public class SingleElimEvent extends BaseEvent {
     }
 
     public SingleElimEvent(final String name, final List<User> players, final List<Round> rounds, Tournament tournament, int index) {
-        super(name, players, tournament);
+        super(name, players, tournament, index);
         this.rounds = rounds;
-        this.index = index;
     }
 }

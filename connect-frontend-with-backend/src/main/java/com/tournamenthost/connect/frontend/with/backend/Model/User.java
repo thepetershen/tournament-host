@@ -20,7 +20,7 @@ import jakarta.persistence.Table;
 
 @Entity
 @Table(name = "users")
-public class User implements UserDetails {
+public class User implements UserDetails, Comparable<User> {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(nullable = false)
@@ -125,5 +125,13 @@ public class User implements UserDetails {
     @Override
     public boolean isEnabled() {
         return true;
+    }
+
+    @Override
+    public int compareTo(User other) {
+        if (this.name == null && other.name == null) return 0;
+        if (this.name == null) return -1;
+        if (other.name == null) return 1;
+        return this.name.compareToIgnoreCase(other.name);
     }
 }

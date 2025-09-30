@@ -2,7 +2,7 @@ package com.tournamenthost.connect.frontend.with.backend.DTO;
 
 import java.util.List;
 
-public class UserDTO {
+public class UserDTO implements Comparable<UserDTO>{
     private Long id;
     private String username;
     private String name;
@@ -47,5 +47,13 @@ public class UserDTO {
 
     public void setTournaments(List<TournamentDTO> tournaments) {
         this.tournaments = tournaments;
+    }
+
+    @Override
+    public int compareTo(UserDTO other) {
+        if (this.name == null && other.name == null) return 0;
+        if (this.name == null) return -1;
+        if (other.name == null) return 1;
+        return this.name.compareToIgnoreCase(other.name);
     }
 }

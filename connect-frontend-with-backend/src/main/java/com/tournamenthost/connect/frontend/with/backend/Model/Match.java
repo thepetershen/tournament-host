@@ -41,9 +41,21 @@ public class Match {
 
     private List<Integer> score;
 
+        @ManyToOne
+    @JoinColumn(name = "winner_id")
+    private User winner;
+
+    private boolean completed;
+
 
     @ManyToOne
     private BaseEvent event;
 
-
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj) return true;
+        if (obj == null || getClass() != obj.getClass()) return false;
+        Match other = (Match) obj;
+        return id != null && id.equals(other.id);
+    }
 }

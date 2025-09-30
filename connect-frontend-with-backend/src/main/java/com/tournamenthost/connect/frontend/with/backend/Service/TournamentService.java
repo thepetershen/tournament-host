@@ -5,9 +5,10 @@ import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.HashSet;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
+import java.util.TreeMap;
+import java.util.Map;
 
 import com.tournamenthost.connect.frontend.with.backend.Model.Match;
 import com.tournamenthost.connect.frontend.with.backend.Model.Tournament;
@@ -17,10 +18,11 @@ import com.tournamenthost.connect.frontend.with.backend.Repository.TournamentRep
 import com.tournamenthost.connect.frontend.with.backend.Repository.UserRepository;
 import com.tournamenthost.connect.frontend.with.backend.Repository.EventRepository;
 import com.tournamenthost.connect.frontend.with.backend.Repository.MatchRepository;
-import com.tournamenthost.connect.frontend.with.backend.Repository.MatchRepository;
 import com.tournamenthost.connect.frontend.with.backend.Model.Event.EventType;
 import com.tournamenthost.connect.frontend.with.backend.Model.Event.Round;
 import com.tournamenthost.connect.frontend.with.backend.Model.Event.SingleElimEvent;
+import com.tournamenthost.connect.frontend.with.backend.Model.Event.RoundRobinEvent;
+import com.tournamenthost.connect.frontend.with.backend.Model.Event.PlayerSchedule;
 import com.tournamenthost.connect.frontend.with.backend.util.TournamentUtil;
 
 @Service
@@ -86,6 +88,7 @@ public class TournamentService {
         BaseEvent event;
         switch (eventType) {
             case SINGLE_ELIM -> event = new SingleElimEvent();
+            case ROUND_ROBIN -> event = new RoundRobinEvent();
             default -> throw new IllegalArgumentException("Unsupported event type");
         }
         Tournament tournament = tournamentRepo.findById(tournamentId)
@@ -127,6 +130,12 @@ public class TournamentService {
                 answer.addAll(r.getMatches());
             }
             return answer;
+        } else if (event instanceof RoundRobinEvent roundRobin) {
+            List<Match> answer = new ArrayList<>();
+            for (PlayerSchedule schedule : roundRobin.getPlayerSchedules()) {
+                answer.addAll(schedule.getMatches());
+            }
+            return answer.stream().distinct().toList();
         } else {
             throw new IllegalArgumentException("Unsupported event type");
         }
@@ -179,6 +188,42 @@ public class TournamentService {
             singleElim.addRound(rounds);
             matchRepo.saveAll(allMatch);
             eventRepo.save(singleElim);
+        } else if (event instanceof RoundRobinEvent roundRobin) {
+            // Generate round robin matches: each player plays every other player
+            List<Match> allMatches = new ArrayList<>();
+            List<PlayerSchedule> playerSchedules = new ArrayList<>();
+
+            // Create a PlayerSchedule for each player
+            for (User player : players) {
+                PlayerSchedule schedule = new PlayerSchedule(player, roundRobin);
+                playerSchedules.add(schedule);
+            }
+
+            // Generate matches: each player vs every other player
+            for (int i = 0; i < players.size(); i++) {
+                for (int j = i + 1; j < players.size(); j++) {
+                    User playerA = players.get(i);
+                    User playerB = players.get(j);
+
+                    // Create the match
+                    Match match = new Match();
+                    match.setPlayerA(playerA);
+                    match.setPlayerB(playerB);
+                    match.setEvent(roundRobin);
+                    allMatches.add(match);
+
+                    // Add this match to both players' schedules
+                    playerSchedules.get(i).addMatch(match);
+                    playerSchedules.get(j).addMatch(match);
+                }
+            }
+
+            // Save matches first
+            matchRepo.saveAll(allMatches);
+
+            // Add schedules to the event and save
+            roundRobin.addPlayerSchedule(playerSchedules);
+            eventRepo.save(roundRobin);
         } else {
             throw new IllegalArgumentException("Unsupported event type");
         }
@@ -193,13 +238,15 @@ public class TournamentService {
         }
         if (event instanceof SingleElimEvent singleElimEvent) {
             singleElimEvent.getRounds().clear();
+        } else if (event instanceof RoundRobinEvent roundRobinEvent) {
+            roundRobinEvent.getPlayerSchedules().clear();
         } else {
             throw new IllegalArgumentException("Unsupported event type");
         }
         eventRepo.save(event);
     }
 
-    public List<List<Match>> getEventDraw(Long tournamentId, int eventIndex) {
+    public Object getEventDraw(Long tournamentId, int eventIndex) {
         BaseEvent event = getEventsForTournament(tournamentId).get(eventIndex);
         if (event instanceof SingleElimEvent singleElimEvent) {
             List<List<Match>> draw = new ArrayList<>();
@@ -207,6 +254,22 @@ public class TournamentService {
                 for (Round round : singleElimEvent.getRounds()) {
                     draw.add(round.getMatches());
                 }
+            }
+            return draw;
+        } else if (event instanceof RoundRobinEvent roundRobinEvent) {
+            // For round robin, return a TreeMap mapping each user to their matches
+            Map<User, List<Match>> draw = new TreeMap<>();
+            for (PlayerSchedule schedule : roundRobinEvent.getPlayerSchedules()) {
+                User player = schedule.getPlayer();
+                List<Match> playerMatches = new ArrayList<>(schedule.getMatches());
+                // Sort matches for consistent ordering
+                playerMatches.sort((m1, m2) -> {
+                    if (m1.getId() != null && m2.getId() != null) {
+                        return m1.getId().compareTo(m2.getId());
+                    }
+                    return 0;
+                });
+                draw.put(player, playerMatches);
             }
             return draw;
         } else {
@@ -223,5 +286,90 @@ public class TournamentService {
             throw new IllegalArgumentException("No events found for tournament with id " + tournamentId);
         }
         return events;
+    }
+
+     public void recordMatchResult(Long matchId, Long winnerId, List<Integer> score) {
+        // Find the match and winner
+        Match match = matchRepo.findById(matchId)
+            .orElseThrow(() -> new IllegalArgumentException("Match with id " + matchId + " not found"));
+        User winner = userRepo.findById(winnerId)
+            .orElseThrow(() -> new IllegalArgumentException("User with id " + winnerId + " not found"));
+
+        // Validate that the winner is actually in this match
+        if (!winner.equals(match.getPlayerA()) && !winner.equals(match.getPlayerB())) {
+            throw new IllegalArgumentException("Player with id " + winnerId + " is not participating in match " + matchId);
+        }
+
+        // Validate that the match hasn't already been completed
+        if (match.isCompleted()) {
+            throw new IllegalArgumentException("Match with id " + matchId + " has already been completed");
+        }
+
+        // Set match result
+        match.setWinner(winner);
+        match.setScore(score);
+        match.setCompleted(true);
+
+        // Save the match
+        matchRepo.save(match);
+
+        // Handle bracket advancement for single elimination events
+        BaseEvent event = match.getEvent();
+        if (event instanceof SingleElimEvent singleElim) {
+            advanceWinnerInSingleElim(match, winner, singleElim);
+        }
+        // For round robin events, no advancement is needed
+    }
+
+    private void advanceWinnerInSingleElim(Match completedMatch, User winner, SingleElimEvent singleElim) {
+        List<Round> rounds = singleElim.getRounds();
+
+        // Find which round and position this match is in
+        Round currentRound = null;
+        int currentRoundIndex = -1;
+        int matchPositionInRound = -1;
+
+        for (int i = 0; i < rounds.size(); i++) {
+            Round round = rounds.get(i);
+            List<Match> matches = round.getMatches();
+            for (int j = 0; j < matches.size(); j++) {
+                if (matches.get(j).getId().equals(completedMatch.getId())) {
+                    currentRound = round;
+                    currentRoundIndex = i;
+                    matchPositionInRound = j;
+                    break;
+                }
+            }
+            if (currentRound != null) break;
+        }
+
+        if (currentRound == null) {
+            throw new IllegalArgumentException("Could not find the completed match in any round");
+        }
+
+        // Check if there's a next round (not the final)
+        if (currentRoundIndex < rounds.size() - 1) {
+            Round nextRound = rounds.get(currentRoundIndex + 1);
+            List<Match> nextRoundMatches = nextRound.getMatches();
+
+            // Calculate which match in the next round this winner advances to
+            // In a standard bracket, two adjacent matches feed into one match in the next round
+            int nextMatchIndex = matchPositionInRound / 2;
+
+            if (nextMatchIndex < nextRoundMatches.size()) {
+                Match nextMatch = nextRoundMatches.get(nextMatchIndex);
+
+                // Determine if winner goes to playerA or playerB slot
+                // Even positioned matches (0, 2, 4...) feed playerA, odd positioned feed playerB
+                if (matchPositionInRound % 2 == 0) {
+                    nextMatch.setPlayerA(winner);
+                } else {
+                    nextMatch.setPlayerB(winner);
+                }
+
+                // Save the updated next round match
+                matchRepo.save(nextMatch);
+            }
+        }
     }
 }

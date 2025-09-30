@@ -1,8 +1,10 @@
 package com.tournamenthost.connect.frontend.with.backend.Controller;
 
+import com.tournamenthost.connect.frontend.with.backend.DTO.DrawResponseDTO;
 import com.tournamenthost.connect.frontend.with.backend.DTO.EventDTO;
 import com.tournamenthost.connect.frontend.with.backend.DTO.EventRequest;
 import com.tournamenthost.connect.frontend.with.backend.DTO.MatchDTO;
+import com.tournamenthost.connect.frontend.with.backend.DTO.MatchResultRequest;
 import com.tournamenthost.connect.frontend.with.backend.DTO.TournamentDTO;
 import com.tournamenthost.connect.frontend.with.backend.DTO.TournamentRequest;
 import com.tournamenthost.connect.frontend.with.backend.DTO.UserDTO;
@@ -12,12 +14,18 @@ import com.tournamenthost.connect.frontend.with.backend.Model.Tournament;
 import com.tournamenthost.connect.frontend.with.backend.Model.User;
 import com.tournamenthost.connect.frontend.with.backend.Model.Event.BaseEvent;
 import com.tournamenthost.connect.frontend.with.backend.Model.Event.EventType;
+import com.tournamenthost.connect.frontend.with.backend.Model.Event.SingleElimEvent;
+import com.tournamenthost.connect.frontend.with.backend.Model.Event.RoundRobinEvent;
 import com.tournamenthost.connect.frontend.with.backend.Service.TournamentService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.TreeMap;
 
 @RestController
 @RequestMapping("/api/tournaments")
@@ -190,25 +198,7 @@ public class TournamentController {
             List<Match> matches = tournamentService.getMatchesForEvent(tournamentId, eventIndex);
             List<MatchDTO> matchDTOs = new ArrayList<>();
             for (Match match : matches) {
-                MatchDTO dto = new MatchDTO();
-                dto.setId(match.getId());
-                User playerA = match.getPlayerA();
-                User playerB = match.getPlayerB();
-                UserDTO playerADTO = new UserDTO();
-                UserDTO playerBDTO = new UserDTO();
-                if (playerA != null) {
-                    playerADTO.setUsername(playerA.getUsername());
-                    playerADTO.setId(playerA.getId());
-                    playerADTO.setName(playerA.getName());
-                }
-                if (playerB != null) {
-                    playerBDTO.setUsername(playerB.getUsername());
-                    playerBDTO.setId(playerB.getId());
-                    playerBDTO.setName(playerB.getName());
-                }
-                dto.setPlayerA(playerADTO);
-                dto.setPlayerB(playerBDTO);
-                matchDTOs.add(dto);
+                matchDTOs.add(createMatchDTO(match));
             }
             return ResponseEntity.ok(matchDTOs);
         } catch (Exception e) {
@@ -219,34 +209,50 @@ public class TournamentController {
     @GetMapping("/{tournamentId}/event/{eventIndex}/draw")
     public ResponseEntity<?> getEventDraw(@PathVariable Long tournamentId, @PathVariable int eventIndex) {
         try {
-            List<List<Match>> draw = tournamentService.getEventDraw(tournamentId, eventIndex);
-            List<List<MatchDTO>> dtoDraw = new ArrayList<>();
-            for (List<Match> round : draw) {
-                List<MatchDTO> roundDTOs = new ArrayList<>();
-                for (Match match : round) {
-                    MatchDTO dto = new MatchDTO();
-                    dto.setId(match.getId());
-                    User playerA = match.getPlayerA();
-                    User playerB = match.getPlayerB();
-                    UserDTO playerADTO  = new UserDTO();
-                    UserDTO playerBDTO  = new UserDTO();
-                    if(playerA != null) {
-                        playerADTO.setUsername(playerA.getUsername());
-                        playerADTO.setId(playerA.getId());
-                        playerADTO.setName(playerA.getName());
+            BaseEvent event = tournamentService.getEventsForTournament(tournamentId).get(eventIndex);
+            String eventType;
+            List<List<Object>> dtoDraw = new ArrayList<>();
+
+            if (event instanceof SingleElimEvent) {
+                eventType = "SINGLE_ELIM";
+                Object drawObject = tournamentService.getEventDraw(tournamentId, eventIndex);
+                List<List<Match>> draw = (List<List<Match>>) drawObject;
+                for (List<Match> round : draw) {
+                    List<Object> roundDTOs = new ArrayList<>();
+                    for (Match match : round) {
+                        MatchDTO dto = createMatchDTO(match);
+                        roundDTOs.add(dto);
                     }
-                    if(playerB != null) {
-                        playerBDTO.setUsername(playerB.getUsername());
-                        playerBDTO.setId(playerB.getId());
-                        playerBDTO.setName(playerB.getName());
-                    }
-                    dto.setPlayerA(playerADTO);
-                    dto.setPlayerB(playerBDTO);
-                    roundDTOs.add(dto);
+                    dtoDraw.add(roundDTOs);
                 }
-                dtoDraw.add(roundDTOs);
+            } else if (event instanceof RoundRobinEvent) {
+                eventType = "ROUND_ROBIN";
+                Object drawObject = tournamentService.getEventDraw(tournamentId, eventIndex);
+                Map<User, List<Match>> draw = (Map<User, List<Match>>) drawObject;
+                for (Map.Entry<User, List<Match>> entry : draw.entrySet()) {
+                    User user = entry.getKey();
+                    UserDTO userDTO = new UserDTO();
+                    userDTO.setId(user.getId());
+                    userDTO.setUsername(user.getUsername());
+                    userDTO.setName(user.getName());
+
+                    List<Object> playerRow = new ArrayList<>();
+                    playerRow.add(userDTO);
+
+                    for (Match match : entry.getValue()) {
+                        MatchDTO dto = createMatchDTO(match);
+                        playerRow.add(dto);
+                    }
+                    dtoDraw.add(playerRow);
+                }
+            } else {
+                throw new IllegalArgumentException("Unsupported event type: " + event.getClass().getSimpleName());
             }
-            return ResponseEntity.ok(dtoDraw);
+
+            DrawResponseDTO response = new DrawResponseDTO();
+            response.setEventType(eventType);
+            response.setDraw(dtoDraw);
+            return ResponseEntity.ok(response);
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(e.getMessage());
         }
@@ -258,26 +264,7 @@ public class TournamentController {
             List<Match> matches = tournamentService.getAllMatches(id);
             List<MatchDTO> matchDTOs = new ArrayList<>();
             for (Match match : matches) {
-                MatchDTO dto = new MatchDTO();
-                dto.setId(match.getId());
-                User playerA = match.getPlayerA();
-                User playerB = match.getPlayerB();
-                UserDTO playerADTO = new UserDTO();
-                UserDTO playerBDTO = new UserDTO();
-                if (playerA != null) {
-                    playerADTO.setUsername(playerA.getUsername());
-                    playerADTO.setId(playerA.getId());
-                    playerADTO.setName(playerA.getName()); // Add name
-                }
-                if (playerB != null) {
-                    playerBDTO.setUsername(playerB.getUsername());
-                    playerBDTO.setId(playerB.getId());
-                    playerBDTO.setName(playerB.getName()); // Add name
-                }
-                dto.setPlayerA(playerADTO);
-                dto.setPlayerB(playerBDTO);
-                // Add more fields if needed
-                matchDTOs.add(dto);
+                matchDTOs.add(createMatchDTO(match));
             }
             return ResponseEntity.ok(matchDTOs);
         } catch (IllegalArgumentException e) {
@@ -306,5 +293,54 @@ public class TournamentController {
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(e.getMessage());
         }
+    }
+
+    // Record match result
+    @PostMapping("/matches/{matchId}/result")
+    public ResponseEntity<?> recordMatchResult(@PathVariable Long matchId, @RequestBody MatchResultRequest request) {
+        try {
+            tournamentService.recordMatchResult(matchId, request.getWinnerId(), request.getScore());
+            return ResponseEntity.ok().build();
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    // Helper method to create MatchDTO with all fields
+    private MatchDTO createMatchDTO(Match match) {
+        MatchDTO dto = new MatchDTO();
+        dto.setId(match.getId());
+        dto.setCompleted(match.isCompleted());
+        dto.setScore(match.getScore());
+
+        User playerA = match.getPlayerA();
+        User playerB = match.getPlayerB();
+        User winner = match.getWinner();
+
+        UserDTO playerADTO = new UserDTO();
+        UserDTO playerBDTO = new UserDTO();
+        UserDTO winnerDTO = new UserDTO();
+
+        if (playerA != null) {
+            playerADTO.setUsername(playerA.getUsername());
+            playerADTO.setId(playerA.getId());
+            playerADTO.setName(playerA.getName());
+        }
+        if (playerB != null) {
+            playerBDTO.setUsername(playerB.getUsername());
+            playerBDTO.setId(playerB.getId());
+            playerBDTO.setName(playerB.getName());
+        }
+        if (winner != null) {
+            winnerDTO.setUsername(winner.getUsername());
+            winnerDTO.setId(winner.getId());
+            winnerDTO.setName(winner.getName());
+        }
+
+        dto.setPlayerA(playerADTO);
+        dto.setPlayerB(playerBDTO);
+        dto.setWinner(winner != null ? winnerDTO : null);
+
+        return dto;
     }
 }
