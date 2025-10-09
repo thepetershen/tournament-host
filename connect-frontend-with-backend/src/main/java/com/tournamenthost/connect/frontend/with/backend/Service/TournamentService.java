@@ -22,6 +22,9 @@ import com.tournamenthost.connect.frontend.with.backend.Model.Event.EventType;
 import com.tournamenthost.connect.frontend.with.backend.Model.Event.Round;
 import com.tournamenthost.connect.frontend.with.backend.Model.Event.SingleElimEvent;
 import com.tournamenthost.connect.frontend.with.backend.Model.Event.RoundRobinEvent;
+import com.tournamenthost.connect.frontend.with.backend.Model.Event.DoubleElimEvent;
+import com.tournamenthost.connect.frontend.with.backend.Model.Event.DoubleElimRound;
+import com.tournamenthost.connect.frontend.with.backend.Model.Event.BracketType;
 import com.tournamenthost.connect.frontend.with.backend.Model.Event.PlayerSchedule;
 import com.tournamenthost.connect.frontend.with.backend.util.TournamentUtil;
 
@@ -40,11 +43,11 @@ public class TournamentService {
     @Autowired
     private MatchRepository matchRepo;
 
-    public Tournament createTournament(String name) {
+    public Tournament createTournament(String name, User owner) {
         if (tournamentRepo.existsByNameIgnoreCaseAndSpaces(name)) {
             throw new IllegalArgumentException("Tournament with name '" + name + "' already exists");
         }
-        Tournament tournament = new Tournament(name);
+        Tournament tournament = new Tournament(name, owner);
         return tournamentRepo.save(tournament);
     }
 
@@ -89,6 +92,7 @@ public class TournamentService {
         switch (eventType) {
             case SINGLE_ELIM -> event = new SingleElimEvent();
             case ROUND_ROBIN -> event = new RoundRobinEvent();
+            case DOUBLE_ELIM -> event = new DoubleElimEvent();
             default -> throw new IllegalArgumentException("Unsupported event type");
         }
         Tournament tournament = tournamentRepo.findById(tournamentId)
@@ -136,6 +140,17 @@ public class TournamentService {
                 answer.addAll(schedule.getMatches());
             }
             return answer.stream().distinct().toList();
+        } else if (event instanceof DoubleElimEvent doubleElim) {
+            List<Match> answer = new ArrayList<>();
+            // Add all matches from winners bracket
+            for (DoubleElimRound round : doubleElim.getWinnersBracket()) {
+                answer.addAll(round.getMatches());
+            }
+            // Add all matches from losers bracket
+            for (DoubleElimRound round : doubleElim.getLosersBracket()) {
+                answer.addAll(round.getMatches());
+            }
+            return answer;
         } else {
             throw new IllegalArgumentException("Unsupported event type");
         }
@@ -224,6 +239,8 @@ public class TournamentService {
             // Add schedules to the event and save
             roundRobin.addPlayerSchedule(playerSchedules);
             eventRepo.save(roundRobin);
+        } else if (event instanceof DoubleElimEvent doubleElim) {
+            initializeDoubleElimEvent(doubleElim, players);
         } else {
             throw new IllegalArgumentException("Unsupported event type");
         }
@@ -240,6 +257,9 @@ public class TournamentService {
             singleElimEvent.getRounds().clear();
         } else if (event instanceof RoundRobinEvent roundRobinEvent) {
             roundRobinEvent.getPlayerSchedules().clear();
+        } else if (event instanceof DoubleElimEvent doubleElimEvent) {
+            doubleElimEvent.getWinnersBracket().clear();
+            doubleElimEvent.getLosersBracket().clear();
         } else {
             throw new IllegalArgumentException("Unsupported event type");
         }
@@ -271,6 +291,23 @@ public class TournamentService {
                 });
                 draw.put(player, playerMatches);
             }
+            return draw;
+        } else if (event instanceof DoubleElimEvent doubleElimEvent) {
+            // For double elim, return a map with both brackets
+            Map<String, List<List<Match>>> draw = new TreeMap<>();
+
+            List<List<Match>> winnersDraw = new ArrayList<>();
+            for (DoubleElimRound round : doubleElimEvent.getWinnersBracket()) {
+                winnersDraw.add(round.getMatches());
+            }
+            draw.put("winners", winnersDraw);
+
+            List<List<Match>> losersDraw = new ArrayList<>();
+            for (DoubleElimRound round : doubleElimEvent.getLosersBracket()) {
+                losersDraw.add(round.getMatches());
+            }
+            draw.put("losers", losersDraw);
+
             return draw;
         } else {
             throw new IllegalArgumentException("Unsupported event type");
@@ -371,5 +408,189 @@ public class TournamentService {
                 matchRepo.save(nextMatch);
             }
         }
+    }
+
+    // ==================== DOUBLE ELIMINATION METHODS ====================
+
+    /**
+     * Initialize a Double Elimination event
+     * Creates winners bracket, losers bracket with feed-in structure
+     */
+    private void initializeDoubleElimEvent(DoubleElimEvent doubleElim, List<User> players) {
+        int bracketSize = TournamentUtil.nextPowerOfTwo(players.size());
+        int winnersRoundCount = (int) (Math.log(bracketSize) / Math.log(2));
+
+        // Calculate losers rounds: approximately 2 * winnersRounds - 1
+        int losersRoundCount = (2 * winnersRoundCount) - 1;
+
+        // Set feed-in cutoff (last 2 rounds of winners don't feed in)
+        doubleElim.setFeedInCutoffRound(Math.max(0, winnersRoundCount - 2));
+
+        List<Match> allMatches = new ArrayList<>();
+
+        // 1. Create Winners Bracket (similar to single elim)
+        List<DoubleElimRound> winnersRounds = createWinnersBracket(doubleElim, players, bracketSize, allMatches);
+        doubleElim.addWinnersRounds(winnersRounds);
+
+        // 2. Create Losers Bracket (empty matches, filled as feed-ins occur)
+        List<DoubleElimRound> losersRounds = createLosersBracket(doubleElim, losersRoundCount, winnersRoundCount, allMatches);
+        doubleElim.addLosersRounds(losersRounds);
+
+        // Save all matches and event
+        matchRepo.saveAll(allMatches);
+        eventRepo.save(doubleElim);
+    }
+
+    /**
+     * Create the winners bracket structure
+     */
+    private List<DoubleElimRound> createWinnersBracket(DoubleElimEvent event, List<User> players,
+                                                        int bracketSize, List<Match> allMatches) {
+        List<DoubleElimRound> winnersRounds = new ArrayList<>();
+        int matchCount = bracketSize / 2;
+
+        // Generate seeded draw
+        ArrayList<User> draw = TournamentUtil.generateDrawUsingSeeding(players, matchCount);
+
+        // Create rounds from bottom to top
+        for (int round = 0; round < Math.log(bracketSize) / Math.log(2); round++) {
+            DoubleElimRound doubleElimRound = new DoubleElimRound(round, BracketType.WINNERS);
+            doubleElimRound.setEvent(event);
+
+            List<Match> roundMatches = new ArrayList<>();
+            for (int i = 0; i < matchCount; i++) {
+                Match match = new Match();
+                match.setEvent(event);
+
+                // For first round, assign players from draw
+                if (round == 0 && i * 2 < draw.size()) {
+                    if (i * 2 < draw.size()) match.setPlayerA(draw.get(i * 2));
+                    if (i * 2 + 1 < draw.size()) match.setPlayerB(draw.get(i * 2 + 1));
+                }
+
+                roundMatches.add(match);
+                allMatches.add(match);
+            }
+
+            doubleElimRound.setMatches(roundMatches);
+            winnersRounds.add(doubleElimRound);
+
+            matchCount /= 2;
+        }
+
+        return winnersRounds;
+    }
+
+    /**
+     * Create the losers bracket structure
+     */
+    private List<DoubleElimRound> createLosersBracket(DoubleElimEvent event, int losersRoundCount,
+                                                       int winnersRoundCount, List<Match> allMatches) {
+        List<DoubleElimRound> losersRounds = new ArrayList<>();
+
+        // Losers bracket has alternating rounds:
+        // - Feed-in rounds (receive losers from winners)
+        // - Progression rounds (winners of losers matches advance)
+
+        int matchCount = event.getPlayers().size() / 4; // Start with half the first round losers
+
+        for (int round = 0; round < losersRoundCount; round++) {
+            DoubleElimRound doubleElimRound = new DoubleElimRound(round, BracketType.LOSERS);
+            doubleElimRound.setEvent(event);
+
+            // Determine if this is a feed-in round
+            int winnersRoundFeeding = round / 2;
+            if (winnersRoundFeeding < winnersRoundCount && round % 2 == 0) {
+                doubleElimRound.setFeedsFromWinnersRound(winnersRoundFeeding);
+            }
+
+            List<Match> roundMatches = new ArrayList<>();
+            for (int i = 0; i < Math.max(1, matchCount); i++) {
+                Match match = new Match();
+                match.setEvent(event);
+                // Players will be filled in via feed-in or progression
+                roundMatches.add(match);
+                allMatches.add(match);
+            }
+
+            doubleElimRound.setMatches(roundMatches);
+            losersRounds.add(doubleElimRound);
+
+            // Adjust match count for next round
+            if (round % 2 == 0) {
+                // Feed-in round: match count stays same or increases
+                matchCount = Math.max(1, matchCount);
+            } else {
+                // Progression round: match count halves
+                matchCount = Math.max(1, matchCount / 2);
+            }
+        }
+
+        return losersRounds;
+    }
+
+    // ==================== AUTHORIZATION METHODS ====================
+
+    /**
+     * Check if a user can edit a tournament (owner or authorized editor)
+     */
+    public boolean canUserEditTournament(Long tournamentId, User user) {
+        Tournament tournament = getTournament(tournamentId);
+        return tournament.canUserEdit(user);
+    }
+
+    /**
+     * Add an authorized editor to a tournament (only owner can do this)
+     */
+    public void addAuthorizedEditor(Long tournamentId, Long editorId, User currentUser) {
+        Tournament tournament = getTournament(tournamentId);
+
+        // Only owner can add editors
+        if (!tournament.getOwner().equals(currentUser)) {
+            throw new IllegalArgumentException("Only the tournament owner can add editors");
+        }
+
+        User editor = userRepo.findById(editorId)
+            .orElseThrow(() -> new IllegalArgumentException("User with id " + editorId + " not found"));
+
+        tournament.addAuthorizedEditor(editor);
+        tournamentRepo.save(tournament);
+    }
+
+    /**
+     * Remove an authorized editor from a tournament (only owner can do this)
+     */
+    public void removeAuthorizedEditor(Long tournamentId, Long editorId, User currentUser) {
+        Tournament tournament = getTournament(tournamentId);
+
+        // Only owner can remove editors
+        if (!tournament.getOwner().equals(currentUser)) {
+            throw new IllegalArgumentException("Only the tournament owner can remove editors");
+        }
+
+        User editor = userRepo.findById(editorId)
+            .orElseThrow(() -> new IllegalArgumentException("User with id " + editorId + " not found"));
+
+        tournament.removeAuthorizedEditor(editor);
+        tournamentRepo.save(tournament);
+    }
+
+    /**
+     * Verify user has edit permission, throw exception if not
+     */
+    public void verifyEditPermission(Long tournamentId, User user) {
+        if (!canUserEditTournament(tournamentId, user)) {
+            throw new IllegalArgumentException("You do not have permission to edit this tournament");
+        }
+    }
+
+    /**
+     * Verify user has permission to edit a match (by checking tournament ownership)
+     */
+    public void verifyMatchEditPermission(Long matchId, User user) {
+        Match match = matchRepo.findById(matchId)
+            .orElseThrow(() -> new IllegalArgumentException("Match with id " + matchId + " not found"));
+        Long tournamentId = match.getEvent().getTournament().getId();
+        verifyEditPermission(tournamentId, user);
     }
 }

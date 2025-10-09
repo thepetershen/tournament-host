@@ -169,8 +169,6 @@ proper roles within auth
 
 Ranking system and leagues
 
-all the types event format (double elim, round robin...)
-
 actual hosting part: sign up(and approval of said players), winners, announcements, ability to advertise tournament, picture storage, seeding using ranking
 
 Better UI in general (pretty important)

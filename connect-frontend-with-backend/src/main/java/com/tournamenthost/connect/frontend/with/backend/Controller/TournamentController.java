@@ -16,15 +16,16 @@ import com.tournamenthost.connect.frontend.with.backend.Model.Event.BaseEvent;
 import com.tournamenthost.connect.frontend.with.backend.Model.Event.EventType;
 import com.tournamenthost.connect.frontend.with.backend.Model.Event.SingleElimEvent;
 import com.tournamenthost.connect.frontend.with.backend.Model.Event.RoundRobinEvent;
+import com.tournamenthost.connect.frontend.with.backend.Model.Event.DoubleElimEvent;
 import com.tournamenthost.connect.frontend.with.backend.Service.TournamentService;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.TreeMap;
 
 @RestController
@@ -38,13 +39,30 @@ public class TournamentController {
         this.tournamentService = tournamentService;
     }
 
+    private User getCurrentUser() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        return (User) authentication.getPrincipal();
+    }
+
     @PostMapping
     public ResponseEntity<?> createTournament(@RequestBody TournamentRequest tournamentRequest) {
         try {
-            Tournament tournament = tournamentService.createTournament(tournamentRequest.getName());
+            User currentUser = getCurrentUser();
+            Tournament tournament = tournamentService.createTournament(tournamentRequest.getName(), currentUser);
             TournamentDTO dto = new TournamentDTO();
             dto.setName(tournament.getName());
             dto.setId(tournament.getId());
+
+            // Add owner information
+            UserDTO ownerDTO = new UserDTO();
+            ownerDTO.setId(currentUser.getId());
+            ownerDTO.setUsername(currentUser.getUsername());
+            ownerDTO.setName(currentUser.getName());
+            dto.setOwner(ownerDTO);
+
+            // Initialize empty editors list
+            dto.setAuthorizedEditors(new ArrayList<>());
+
             return ResponseEntity.ok(dto);
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(e.getMessage());
@@ -55,6 +73,9 @@ public class TournamentController {
     @PostMapping("/{tournamentId}/event")
     public ResponseEntity<?> createEvent(@PathVariable Long tournamentId, @RequestBody EventRequest request) {
         try {
+            User currentUser = getCurrentUser();
+            tournamentService.verifyEditPermission(tournamentId, currentUser);
+
             EventType type = EventType.valueOf(request.getEventType().toUpperCase());
             BaseEvent event = tournamentService.addEvent(request.getName(), type, tournamentId);
             EventDTO dto = new EventDTO();
@@ -70,6 +91,9 @@ public class TournamentController {
     @PutMapping("/{tournamentId}/event/{eventIndex}/name")
     public ResponseEntity<?> setEventName(@PathVariable Long tournamentId, @PathVariable int eventIndex, @RequestBody String newName) {
         try{
+            User currentUser = getCurrentUser();
+            tournamentService.verifyEditPermission(tournamentId, currentUser);
+
             BaseEvent event = tournamentService.getEventsForTournament(tournamentId).get(eventIndex);
             event.setName(newName.replace("\"", ""));
             EventDTO dto = new EventDTO();
@@ -102,6 +126,27 @@ public class TournamentController {
             TournamentDTO dto = new TournamentDTO();
             dto.setId(tournament.getId());
             dto.setName(tournament.getName());
+
+            // Include owner information
+            if (tournament.getOwner() != null) {
+                UserDTO ownerDTO = new UserDTO();
+                ownerDTO.setId(tournament.getOwner().getId());
+                ownerDTO.setUsername(tournament.getOwner().getUsername());
+                ownerDTO.setName(tournament.getOwner().getName());
+                dto.setOwner(ownerDTO);
+            }
+
+            // Include authorized editors
+            List<UserDTO> editorDTOs = new ArrayList<>();
+            for (User editor : tournament.getAuthorizedEditors()) {
+                UserDTO editorDTO = new UserDTO();
+                editorDTO.setId(editor.getId());
+                editorDTO.setUsername(editor.getUsername());
+                editorDTO.setName(editor.getName());
+                editorDTOs.add(editorDTO);
+            }
+            dto.setAuthorizedEditors(editorDTOs);
+
             return ResponseEntity.ok(dto);
         } catch (IllegalArgumentException e) {
             return ResponseEntity.notFound().build();
@@ -158,6 +203,9 @@ public class TournamentController {
     @PostMapping("/{tournamentId}/event/{eventIndex}/players")
     public ResponseEntity<?> addPlayers(@PathVariable Long tournamentId, @PathVariable int eventIndex, @RequestBody List<UserGetRequest> playerRequests) {
         try {
+            User currentUser = getCurrentUser();
+            tournamentService.verifyEditPermission(tournamentId, currentUser);
+
             for(UserGetRequest request: playerRequests){
                 Long userId = request.getId();
                 tournamentService.addPlayer(tournamentId, eventIndex, userId);
@@ -245,6 +293,40 @@ public class TournamentController {
                     }
                     dtoDraw.add(playerRow);
                 }
+            } else if (event instanceof DoubleElimEvent) {
+                eventType = "DOUBLE_ELIM";
+                Object drawObject = tournamentService.getEventDraw(tournamentId, eventIndex);
+                Map<String, List<List<Match>>> draw = (Map<String, List<List<Match>>>) drawObject;
+
+                // Create a map to return with winners and losers brackets
+                Map<String, List<List<MatchDTO>>> doubleElimDraw = new TreeMap<>();
+
+                // Process winners bracket
+                List<List<MatchDTO>> winnersDTOs = new ArrayList<>();
+                for (List<Match> round : draw.get("winners")) {
+                    List<MatchDTO> roundDTOs = new ArrayList<>();
+                    for (Match match : round) {
+                        roundDTOs.add(createMatchDTO(match));
+                    }
+                    winnersDTOs.add(roundDTOs);
+                }
+                doubleElimDraw.put("winners", winnersDTOs);
+
+                // Process losers bracket
+                List<List<MatchDTO>> losersDTOs = new ArrayList<>();
+                for (List<Match> round : draw.get("losers")) {
+                    List<MatchDTO> roundDTOs = new ArrayList<>();
+                    for (Match match : round) {
+                        roundDTOs.add(createMatchDTO(match));
+                    }
+                    losersDTOs.add(roundDTOs);
+                }
+                doubleElimDraw.put("losers", losersDTOs);
+
+                DrawResponseDTO response = new DrawResponseDTO();
+                response.setEventType(eventType);
+                response.setDraw(doubleElimDraw);
+                return ResponseEntity.ok(response);
             } else {
                 throw new IllegalArgumentException("Unsupported event type: " + event.getClass().getSimpleName());
             }
@@ -277,6 +359,9 @@ public class TournamentController {
     @PostMapping("/{tournamentId}/event/{eventIndex}/initialize")
     public ResponseEntity<?> initializeEvent(@PathVariable Long tournamentId, @PathVariable int eventIndex) {
         try {
+            User currentUser = getCurrentUser();
+            tournamentService.verifyEditPermission(tournamentId, currentUser);
+
             tournamentService.initializeEvent(tournamentId, eventIndex);
             return ResponseEntity.ok().build();
         } catch (IllegalArgumentException e) {
@@ -288,6 +373,9 @@ public class TournamentController {
     @PostMapping("/{tournamentId}/event/{eventIndex}/deinitialize")
     public ResponseEntity<?> deinitializeEvent(@PathVariable Long tournamentId, @PathVariable int eventIndex) {
         try {
+            User currentUser = getCurrentUser();
+            tournamentService.verifyEditPermission(tournamentId, currentUser);
+
             tournamentService.deinitializeEvent(tournamentId, eventIndex);
             return ResponseEntity.ok().build();
         } catch (IllegalArgumentException e) {
@@ -299,6 +387,9 @@ public class TournamentController {
     @PostMapping("/matches/{matchId}/result")
     public ResponseEntity<?> recordMatchResult(@PathVariable Long matchId, @RequestBody MatchResultRequest request) {
         try {
+            User currentUser = getCurrentUser();
+            tournamentService.verifyMatchEditPermission(matchId, currentUser);
+
             tournamentService.recordMatchResult(matchId, request.getWinnerId(), request.getScore());
             return ResponseEntity.ok().build();
         } catch (IllegalArgumentException e) {
@@ -342,5 +433,65 @@ public class TournamentController {
         dto.setWinner(winner != null ? winnerDTO : null);
 
         return dto;
+    }
+
+    // ==================== EDITOR MANAGEMENT ENDPOINTS ====================
+
+    @GetMapping("/{id}/owner")
+    public ResponseEntity<?> getTournamentOwner(@PathVariable Long id) {
+        try {
+            Tournament tournament = tournamentService.getTournament(id);
+            User owner = tournament.getOwner();
+            if (owner == null) {
+                return ResponseEntity.ok().body("No owner assigned");
+            }
+            UserDTO ownerDTO = new UserDTO();
+            ownerDTO.setId(owner.getId());
+            ownerDTO.setUsername(owner.getUsername());
+            ownerDTO.setName(owner.getName());
+            return ResponseEntity.ok(ownerDTO);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    @GetMapping("/{id}/editors")
+    public ResponseEntity<?> getTournamentEditors(@PathVariable Long id) {
+        try {
+            Tournament tournament = tournamentService.getTournament(id);
+            List<UserDTO> editorDTOs = new ArrayList<>();
+            for (User editor : tournament.getAuthorizedEditors()) {
+                UserDTO dto = new UserDTO();
+                dto.setId(editor.getId());
+                dto.setUsername(editor.getUsername());
+                dto.setName(editor.getName());
+                editorDTOs.add(dto);
+            }
+            return ResponseEntity.ok(editorDTOs);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    @PostMapping("/{id}/editors")
+    public ResponseEntity<?> addTournamentEditor(@PathVariable Long id, @RequestBody UserGetRequest editorRequest) {
+        try {
+            User currentUser = getCurrentUser();
+            tournamentService.addAuthorizedEditor(id, editorRequest.getId(), currentUser);
+            return ResponseEntity.ok().build();
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    @DeleteMapping("/{id}/editors/{editorId}")
+    public ResponseEntity<?> removeTournamentEditor(@PathVariable Long id, @PathVariable Long editorId) {
+        try {
+            User currentUser = getCurrentUser();
+            tournamentService.removeAuthorizedEditor(id, editorId, currentUser);
+            return ResponseEntity.ok().build();
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
     }
 }
