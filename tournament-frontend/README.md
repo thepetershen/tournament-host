@@ -165,9 +165,7 @@ This project is open source and available under the [MIT License](LICENSE).
 
 Todos:
 
-proper roles within auth
-
-Ranking system and leagues
+seeding using ranking
 
 actual hosting part: sign up(and approval of said players), winners, announcements, ability to advertise tournament, picture storage, seeding using ranking
 

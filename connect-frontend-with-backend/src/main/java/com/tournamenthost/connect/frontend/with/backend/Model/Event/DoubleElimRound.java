@@ -16,6 +16,7 @@ public class DoubleElimRound {
     private Long id;
 
     @OneToMany(cascade = CascadeType.ALL)
+    @OrderColumn(name = "match_position")
     private List<Match> matches;
 
     /**

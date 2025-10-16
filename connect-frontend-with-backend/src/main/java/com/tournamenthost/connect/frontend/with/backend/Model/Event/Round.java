@@ -12,6 +12,7 @@ public class Round {
     private Long id;
 
     @OneToMany(cascade = CascadeType.ALL)
+    @OrderColumn(name = "match_position")
     private List<Match> matches;
 
     // Optionally, you can add a round number or name

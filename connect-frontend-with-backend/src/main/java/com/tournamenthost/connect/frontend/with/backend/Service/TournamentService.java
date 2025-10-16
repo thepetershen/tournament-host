@@ -13,11 +13,13 @@ import java.util.Map;
 import com.tournamenthost.connect.frontend.with.backend.Model.Match;
 import com.tournamenthost.connect.frontend.with.backend.Model.Tournament;
 import com.tournamenthost.connect.frontend.with.backend.Model.User;
+import com.tournamenthost.connect.frontend.with.backend.Model.PointsDistribution;
 import com.tournamenthost.connect.frontend.with.backend.Model.Event.BaseEvent;
 import com.tournamenthost.connect.frontend.with.backend.Repository.TournamentRepository;
 import com.tournamenthost.connect.frontend.with.backend.Repository.UserRepository;
 import com.tournamenthost.connect.frontend.with.backend.Repository.EventRepository;
 import com.tournamenthost.connect.frontend.with.backend.Repository.MatchRepository;
+import com.tournamenthost.connect.frontend.with.backend.Repository.PointsDistributionRepository;
 import com.tournamenthost.connect.frontend.with.backend.Model.Event.EventType;
 import com.tournamenthost.connect.frontend.with.backend.Model.Event.Round;
 import com.tournamenthost.connect.frontend.with.backend.Model.Event.SingleElimEvent;
@@ -42,6 +44,9 @@ public class TournamentService {
 
     @Autowired
     private MatchRepository matchRepo;
+
+    @Autowired
+    private PointsDistributionRepository pointsDistributionRepo;
 
     public Tournament createTournament(String name, User owner) {
         if (tournamentRepo.existsByNameIgnoreCaseAndSpaces(name)) {
@@ -250,19 +255,41 @@ public class TournamentService {
         BaseEvent event = getEventsForTournament(tournamentId).get(eventIndex);
         if (!event.isEventInitialized()) {
             throw new IllegalArgumentException("This event was never initialized, nothing to deinitialize");
-        } else {
-            event.unInitiateEvent();
         }
+
+        // Collect all matches to delete
+        List<Match> matchesToDelete = new ArrayList<>();
+
         if (event instanceof SingleElimEvent singleElimEvent) {
+            for (Round round : singleElimEvent.getRounds()) {
+                matchesToDelete.addAll(round.getMatches());
+            }
             singleElimEvent.getRounds().clear();
         } else if (event instanceof RoundRobinEvent roundRobinEvent) {
+            for (PlayerSchedule schedule : roundRobinEvent.getPlayerSchedules()) {
+                matchesToDelete.addAll(schedule.getMatches());
+            }
+            // Use distinct to avoid deleting the same match multiple times
+            matchesToDelete = matchesToDelete.stream().distinct().toList();
             roundRobinEvent.getPlayerSchedules().clear();
         } else if (event instanceof DoubleElimEvent doubleElimEvent) {
+            for (DoubleElimRound round : doubleElimEvent.getWinnersBracket()) {
+                matchesToDelete.addAll(round.getMatches());
+            }
+            for (DoubleElimRound round : doubleElimEvent.getLosersBracket()) {
+                matchesToDelete.addAll(round.getMatches());
+            }
             doubleElimEvent.getWinnersBracket().clear();
             doubleElimEvent.getLosersBracket().clear();
         } else {
             throw new IllegalArgumentException("Unsupported event type");
         }
+
+        // Delete all matches from database
+        matchRepo.deleteAll(matchesToDelete);
+
+        // Mark event as uninitialized
+        event.unInitiateEvent();
         eventRepo.save(event);
     }
 
@@ -325,7 +352,14 @@ public class TournamentService {
         return events;
     }
 
-     public void recordMatchResult(Long matchId, Long winnerId, List<Integer> score) {
+    /**
+     * Record match result with tournament context validation
+     * This ensures the match belongs to the specified tournament before recording the result
+     */
+    public void recordMatchResult(Long tournamentId, Long matchId, Long winnerId, List<Integer> score) {
+        // First verify the match belongs to this tournament
+        verifyMatchBelongsToTournament(matchId, tournamentId);
+
         // Find the match and winner
         Match match = matchRepo.findById(matchId)
             .orElseThrow(() -> new IllegalArgumentException("Match with id " + matchId + " not found"));
@@ -340,6 +374,20 @@ public class TournamentService {
         // Validate that the match hasn't already been completed
         if (match.isCompleted()) {
             throw new IllegalArgumentException("Match with id " + matchId + " has already been completed");
+        } 
+
+        // validate that both players are in the match
+
+        if (match.getPlayerA() == null || match.getPlayerB() == null) {
+            throw new IllegalStateException("Match with id " + matchId + "doesn't have both of their players yet");
+        }
+        
+        // Handle bracket advancement for single elimination events
+        BaseEvent event = match.getEvent();
+        
+        // For round robin events, no advancement is needed
+        if (event instanceof SingleElimEvent singleElim) {
+            advanceWinnerInSingleElim(match, winner, singleElim);
         }
 
         // Set match result
@@ -350,12 +398,7 @@ public class TournamentService {
         // Save the match
         matchRepo.save(match);
 
-        // Handle bracket advancement for single elimination events
-        BaseEvent event = match.getEvent();
-        if (event instanceof SingleElimEvent singleElim) {
-            advanceWinnerInSingleElim(match, winner, singleElim);
-        }
-        // For round robin events, no advancement is needed
+        
     }
 
     private void advanceWinnerInSingleElim(Match completedMatch, User winner, SingleElimEvent singleElim) {
@@ -382,6 +425,8 @@ public class TournamentService {
 
         if (currentRound == null) {
             throw new IllegalArgumentException("Could not find the completed match in any round");
+        } else if ((completedMatch.getPlayerA() == null || completedMatch.getPlayerB() == null) && currentRoundIndex == 0) {
+            throw new IllegalStateException("The match doesn't have both of its players yet");
         }
 
         // Check if there's a next round (not the final)
@@ -396,16 +441,20 @@ public class TournamentService {
             if (nextMatchIndex < nextRoundMatches.size()) {
                 Match nextMatch = nextRoundMatches.get(nextMatchIndex);
 
-                // Determine if winner goes to playerA or playerB slot
-                // Even positioned matches (0, 2, 4...) feed playerA, odd positioned feed playerB
-                if (matchPositionInRound % 2 == 0) {
-                    nextMatch.setPlayerA(winner);
-                } else {
-                    nextMatch.setPlayerB(winner);
-                }
+                // Don't overwrite players in an already-completed match
+                // This prevents issues when matches are completed out of order
+                if (!nextMatch.isCompleted()) {
+                    // Determine if winner goes to playerA or playerB slot
+                    // Even positioned matches (0, 2, 4...) feed playerA, odd positioned feed playerB
+                    if (matchPositionInRound % 2 == 0) {
+                        nextMatch.setPlayerA(winner);
+                    } else {
+                        nextMatch.setPlayerB(winner);
+                    }
 
-                // Save the updated next round match
-                matchRepo.save(nextMatch);
+                    // Save the updated next round match
+                    matchRepo.save(nextMatch);
+                }
             }
         }
     }
@@ -592,5 +641,432 @@ public class TournamentService {
             .orElseThrow(() -> new IllegalArgumentException("Match with id " + matchId + " not found"));
         Long tournamentId = match.getEvent().getTournament().getId();
         verifyEditPermission(tournamentId, user);
+    }
+
+    /**
+     * Verify that a match belongs to a specific tournament
+     * Throws IllegalArgumentException if the match doesn't belong to the tournament
+     */
+    public void verifyMatchBelongsToTournament(Long matchId, Long tournamentId) {
+        Match match = matchRepo.findById(matchId)
+            .orElseThrow(() -> new IllegalArgumentException("Match with id " + matchId + " not found"));
+
+        BaseEvent event = match.getEvent();
+        if (event == null) {
+            throw new IllegalArgumentException("Match with id " + matchId + " is not associated with any event");
+        }
+
+        Tournament matchTournament = event.getTournament();
+        if (matchTournament == null || !matchTournament.getId().equals(tournamentId)) {
+            throw new IllegalArgumentException("Match with id " + matchId + " does not belong to tournament with id " + tournamentId);
+        }
+    }
+
+    /**
+     * Verify that a match belongs to a specific event within a tournament
+     * Throws IllegalArgumentException if the match doesn't belong to the specified event
+     */
+    public void verifyMatchBelongsToEvent(Long matchId, Long tournamentId, int eventIndex) {
+        // First verify the match belongs to the tournament
+        verifyMatchBelongsToTournament(matchId, tournamentId);
+
+        // Then verify it belongs to the specific event
+        Match match = matchRepo.findById(matchId)
+            .orElseThrow(() -> new IllegalArgumentException("Match with id " + matchId + " not found"));
+
+        BaseEvent matchEvent = match.getEvent();
+        BaseEvent expectedEvent = getEventsForTournament(tournamentId).get(eventIndex);
+
+        if (!matchEvent.getId().equals(expectedEvent.getId())) {
+            throw new IllegalArgumentException("Match with id " + matchId + " does not belong to event " + eventIndex + " of tournament " + tournamentId);
+        }
+    }
+
+    // ==================== POINTS DISTRIBUTION METHODS ====================
+
+    /**
+     * Set or update points distribution for a specific event
+     */
+    public PointsDistribution setPointsDistribution(Long tournamentId, int eventIndex, Map<String, Integer> pointsMap) {
+        Tournament tournament = getTournament(tournamentId);
+        BaseEvent event = getEventsForTournament(tournamentId).get(eventIndex);
+
+        // Check if points distribution already exists for this event
+        PointsDistribution pointsDistribution = pointsDistributionRepo.findByEvent(event).orElse(null);
+
+        if (pointsDistribution == null) {
+            pointsDistribution = new PointsDistribution(tournament, event);
+        } else {
+            pointsDistribution.getPointsMap().clear();
+        }
+
+        pointsDistribution.setPointsMap(pointsMap);
+        pointsDistributionRepo.save(pointsDistribution);
+
+        return pointsDistribution;
+    }
+
+    /**
+     * Get points distribution for a specific event
+     */
+    public PointsDistribution getPointsDistribution(Long tournamentId, int eventIndex) {
+        BaseEvent event = getEventsForTournament(tournamentId).get(eventIndex);
+        return pointsDistributionRepo.findByEvent(event).orElse(null);
+    }
+
+    /**
+     * Get all points distributions for a tournament
+     */
+    public List<PointsDistribution> getAllPointsDistributions(Long tournamentId) {
+        Tournament tournament = getTournament(tournamentId);
+        return pointsDistributionRepo.findAllByTournament(tournament);
+    }
+
+    // ==================== TOURNAMENT COMPLETION METHODS ====================
+
+    /**
+     * Check if an event is complete (all matches have been played)
+     */
+    public boolean isEventComplete(Long tournamentId, int eventIndex) {
+        BaseEvent event = getEventsForTournament(tournamentId).get(eventIndex);
+
+        if (!event.isEventInitialized()) {
+            return false;
+        }
+
+        List<Match> matches = getMatchesForEvent(tournamentId, eventIndex);
+
+        // Event is complete if all matches are completed
+        for (Match match : matches) {
+            if (!match.isCompleted()) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * Check if a tournament is complete (all events are complete)
+     */
+    public boolean isTournamentComplete(Long tournamentId) {
+        Tournament tournament = getTournament(tournamentId);
+        List<BaseEvent> events = tournament.getEvents();
+
+        if (events == null || events.isEmpty()) {
+            return false;
+        }
+
+        // Tournament is complete if all events are complete
+        for (BaseEvent event : events) {
+            if (!isEventComplete(tournamentId, event.getIndex())) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * Calculate event-specific points based on placements
+     * Returns a map of User -> Points earned for this specific event
+     * Only calculates points when the event is complete
+     */
+    public Map<User, Integer> calculateEventPoints(Long tournamentId, int eventIndex) {
+        BaseEvent event = getEventsForTournament(tournamentId).get(eventIndex);
+        PointsDistribution pointsDistribution = getPointsDistribution(tournamentId, eventIndex);
+
+        if (pointsDistribution == null) {
+            throw new IllegalArgumentException("No points distribution configured for this event");
+        }
+
+        if (!event.isEventInitialized()) {
+            throw new IllegalArgumentException("Event has not been initialized yet");
+        }
+
+        // Only calculate points when the event is complete
+        if (!isEventComplete(tournamentId, eventIndex)) {
+            throw new IllegalArgumentException("Cannot calculate points - event is not yet complete. All matches must be finished first.");
+        }
+
+        Map<User, Integer> userPoints = new TreeMap<>();
+
+        if (event instanceof SingleElimEvent singleElim) {
+            userPoints = calculateSingleElimPoints(singleElim, pointsDistribution);
+        } else if (event instanceof RoundRobinEvent roundRobin) {
+            userPoints = calculateRoundRobinPoints(roundRobin, pointsDistribution);
+        } else if (event instanceof DoubleElimEvent doubleElim) {
+            userPoints = calculateDoubleElimPoints(doubleElim, pointsDistribution);
+        }
+
+        return userPoints;
+    }
+
+    /**
+     * Calculate cumulative tournament points across all events
+     * Returns a map of User -> Total Points earned across all events in the tournament
+     */
+    public Map<User, Integer> calculateCumulativeTournamentPoints(Long tournamentId) {
+        Tournament tournament = getTournament(tournamentId);
+        List<BaseEvent> events = tournament.getEvents();
+        Map<User, Integer> cumulativePoints = new TreeMap<>();
+
+        // Iterate through each event
+        for (BaseEvent event : events) {
+            int eventIndex = event.getIndex();
+
+            // Check if the event is complete and has points distribution
+            if (!isEventComplete(tournamentId, eventIndex)) {
+                continue; // Skip incomplete events
+            }
+
+            PointsDistribution pointsDistribution = getPointsDistribution(tournamentId, eventIndex);
+            if (pointsDistribution == null) {
+                continue; // Skip events without points distribution
+            }
+
+            try {
+                // Calculate points for this event
+                Map<User, Integer> eventPoints = calculateEventPoints(tournamentId, eventIndex);
+
+                // Add to cumulative points
+                for (Map.Entry<User, Integer> entry : eventPoints.entrySet()) {
+                    User user = entry.getKey();
+                    Integer points = entry.getValue();
+                    cumulativePoints.put(user, cumulativePoints.getOrDefault(user, 0) + points);
+                }
+            } catch (IllegalArgumentException e) {
+                // Skip events that can't have points calculated
+                continue;
+            }
+        }
+
+        return cumulativePoints;
+    }
+
+    /**
+     * Calculate points for Single Elimination events
+     * Assumes event is complete (all matches finished)
+     */
+    private Map<User, Integer> calculateSingleElimPoints(SingleElimEvent event, PointsDistribution pointsDistribution) {
+        Map<User, Integer> userPoints = new TreeMap<>();
+        List<Round> rounds = event.getRounds();
+
+        if (rounds.isEmpty()) {
+            return userPoints;
+        }
+
+        int totalRounds = rounds.size();
+
+        // Process each round from last to first
+        // Losers of each round get points for their placement
+        for (int roundIndex = totalRounds - 1; roundIndex >= 0; roundIndex--) {
+            Round round = rounds.get(roundIndex);
+            String placement = getPlacementForSingleElimRound(totalRounds, roundIndex);
+            Integer points = pointsDistribution.getPointsForPlacement(placement);
+
+            for (Match match : round.getMatches()) {
+                User loser = getLoser(match);
+                if (loser != null && !userPoints.containsKey(loser)) {
+                    userPoints.put(loser, points);
+                }
+            }
+        }
+
+        // Award 1st place points to the tournament winner
+        Round finalRound = rounds.get(totalRounds - 1);
+        if (!finalRound.getMatches().isEmpty()) {
+            Match finalMatch = finalRound.getMatches().get(0);
+            User winner = finalMatch.getWinner();
+            if (winner != null) {
+                Integer winnerPoints = pointsDistribution.getPointsForPlacement("1");
+                userPoints.put(winner, winnerPoints);
+            }
+        }
+
+        return userPoints;
+    }
+
+    /**
+     * Calculate points for Round Robin events
+     */
+    private Map<User, Integer> calculateRoundRobinPoints(RoundRobinEvent event, PointsDistribution pointsDistribution) {
+        Map<User, Integer> userPoints = new TreeMap<>();
+        Map<User, Integer> userWins = new TreeMap<>();
+        Map<User, Integer> userTotalScore = new TreeMap<>();
+
+        // Initialize all players
+        for (User player : event.getPlayers()) {
+            userWins.put(player, 0);
+            userTotalScore.put(player, 0);
+        }
+
+        // Count wins and total scores for each player
+        for (PlayerSchedule schedule : event.getPlayerSchedules()) {
+            User player = schedule.getPlayer();
+            int wins = 0;
+            int totalScore = 0;
+
+            for (Match match : schedule.getMatches()) {
+                if (match.isCompleted()) {
+                    if (match.getWinner() != null && match.getWinner().equals(player)) {
+                        wins++;
+                    }
+                    // Calculate player's score in this match
+                    if (match.getScore() != null && !match.getScore().isEmpty()) {
+                        totalScore += getPlayerScoreInMatch(match, player);
+                    }
+                }
+            }
+
+            userWins.put(player, wins);
+            userTotalScore.put(player, totalScore);
+        }
+
+        // Sort players by wins (then by total score as tiebreaker)
+        List<User> sortedPlayers = new ArrayList<>(event.getPlayers());
+        sortedPlayers.sort((u1, u2) -> {
+            int winsCompare = Integer.compare(userWins.get(u2), userWins.get(u1));
+            if (winsCompare != 0) return winsCompare;
+            return Integer.compare(userTotalScore.get(u2), userTotalScore.get(u1));
+        });
+
+        // Assign points based on placement
+        for (int i = 0; i < sortedPlayers.size(); i++) {
+            User player = sortedPlayers.get(i);
+            String placement = String.valueOf(i + 1);
+            Integer points = pointsDistribution.getPointsForPlacement(placement);
+            userPoints.put(player, points);
+        }
+
+        return userPoints;
+    }
+
+    /**
+     * Calculate points for Double Elimination events
+     */
+    private Map<User, Integer> calculateDoubleElimPoints(DoubleElimEvent event, PointsDistribution pointsDistribution) {
+        Map<User, Integer> userPoints = new TreeMap<>();
+        Map<User, String> userPlacements = new TreeMap<>();
+
+        // Determine placements based on when players were eliminated
+        List<DoubleElimRound> winnersRounds = event.getWinnersBracket();
+        List<DoubleElimRound> losersRounds = event.getLosersBracket();
+
+        // Track eliminations from losers bracket (these determine final placements)
+        for (int i = losersRounds.size() - 1; i >= 0; i--) {
+            DoubleElimRound round = losersRounds.get(i);
+            String placement = getPlacementForDoubleElimLosersRound(losersRounds.size(), i, losersRounds);
+
+            for (Match match : round.getMatches()) {
+                if (match.isCompleted() && match.getWinner() != null) {
+                    User loser = getLoser(match);
+                    if (loser != null && !userPlacements.containsKey(loser)) {
+                        userPlacements.put(loser, placement);
+                    }
+                }
+            }
+        }
+
+        // Determine winner (grand finals winner)
+        if (!losersRounds.isEmpty()) {
+            DoubleElimRound lastLosersRound = losersRounds.get(losersRounds.size() - 1);
+            if (!lastLosersRound.getMatches().isEmpty()) {
+                Match grandFinals = lastLosersRound.getMatches().get(0);
+                if (grandFinals.isCompleted() && grandFinals.getWinner() != null) {
+                    userPlacements.put(grandFinals.getWinner(), "1");
+                    User loser = getLoser(grandFinals);
+                    if (loser != null && !userPlacements.containsKey(loser)) {
+                        userPlacements.put(loser, "2");
+                    }
+                }
+            }
+        }
+
+        // Convert placements to points
+        for (Map.Entry<User, String> entry : userPlacements.entrySet()) {
+            User player = entry.getKey();
+            String placement = entry.getValue();
+            Integer points = pointsDistribution.getPointsForPlacement(placement);
+            userPoints.put(player, points);
+        }
+
+        return userPoints;
+    }
+
+    /**
+     * Helper: Get placement string for losers of a single elim round
+     * totalRounds=3 (8 players): roundIndex 2="2" (finals loser), 1="3" (semis losers), 0="5" (quarters losers)
+     */
+    private String getPlacementForSingleElimRound(int totalRounds, int roundIndex) {
+        if (roundIndex == totalRounds - 1) return "2";  // Finals loser gets 2nd place
+        if (roundIndex == totalRounds - 2) return "3";  // Semifinals losers get 3rd place
+
+        // For earlier rounds: quarterfinalist losers=5th, round of 16 losers=9th, etc.
+        int playersAtThisLevel = (int) Math.pow(2, roundIndex + 1);
+        return String.valueOf(playersAtThisLevel / 2 + 1);
+    }
+
+    /**
+     * Helper: Get placement string for double elim losers round
+     *
+     * For a 16-player tournament (7 losers rounds):
+     * - LR6 (Grand Finals): 2nd place (1 player eliminated)
+     * - LR5 (Losers Finals): 3rd place (1 player eliminated)
+     * - LR4: 4th place (1 player eliminated)
+     * - LR3: 5th place (2 players eliminated)
+     * - LR2: 7th place (2 players eliminated)
+     * - LR1: 9th place (4 players eliminated)
+     * - LR0: 13th place (4 players eliminated)
+     *
+     * The placement is based on how many players were eliminated in later rounds.
+     */
+    private String getPlacementForDoubleElimLosersRound(int totalLosersRounds, int roundIndex, List<DoubleElimRound> losersRounds) {
+        if (roundIndex == totalLosersRounds - 1) return "2";  // Grand finals loser (2nd place)
+        if (roundIndex == totalLosersRounds - 2) return "3";  // Losers finals loser (3rd place)
+
+        // Calculate how many players have already been eliminated in later rounds
+        // This determines the starting placement for this round
+        int placementNumber = 4; // Start after 1st, 2nd, 3rd
+
+        // Count from the second-to-last round down to current round
+        for (int i = totalLosersRounds - 3; i > roundIndex; i--) {
+            // Each losers round eliminates as many players as there are matches
+            // (each match has 1 loser)
+            int matchesInRound = losersRounds.get(i).getMatches().size();
+            placementNumber += matchesInRound;
+        }
+
+        return String.valueOf(placementNumber);
+    }
+
+    /**
+     * Helper: Get the loser of a match
+     */
+    private User getLoser(Match match) {
+        if (match.getWinner() == null) return null;
+        if (match.getWinner().equals(match.getPlayerA())) {
+            return match.getPlayerB();
+        } else {
+            return match.getPlayerA();
+        }
+    }
+
+    /**
+     * Helper: Get player's score in a specific match
+     */
+    private int getPlayerScoreInMatch(Match match, User player) {
+        if (match.getScore() == null || match.getScore().isEmpty()) {
+            return 0;
+        }
+
+        // Assume score list has [playerA score, playerB score]
+        if (match.getPlayerA() != null && match.getPlayerA().equals(player)) {
+            return match.getScore().get(0);
+        } else if (match.getPlayerB() != null && match.getPlayerB().equals(player)) {
+            return match.getScore().size() > 1 ? match.getScore().get(1) : 0;
+        }
+
+        return 0;
     }
 }

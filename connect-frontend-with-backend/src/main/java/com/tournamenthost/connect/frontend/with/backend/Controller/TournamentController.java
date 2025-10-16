@@ -9,9 +9,12 @@ import com.tournamenthost.connect.frontend.with.backend.DTO.TournamentDTO;
 import com.tournamenthost.connect.frontend.with.backend.DTO.TournamentRequest;
 import com.tournamenthost.connect.frontend.with.backend.DTO.UserDTO;
 import com.tournamenthost.connect.frontend.with.backend.DTO.UserGetRequest;
+import com.tournamenthost.connect.frontend.with.backend.DTO.PointsDistributionRequest;
+import com.tournamenthost.connect.frontend.with.backend.DTO.PointsDistributionDTO;
 import com.tournamenthost.connect.frontend.with.backend.Model.Match;
 import com.tournamenthost.connect.frontend.with.backend.Model.Tournament;
 import com.tournamenthost.connect.frontend.with.backend.Model.User;
+import com.tournamenthost.connect.frontend.with.backend.Model.PointsDistribution;
 import com.tournamenthost.connect.frontend.with.backend.Model.Event.BaseEvent;
 import com.tournamenthost.connect.frontend.with.backend.Model.Event.EventType;
 import com.tournamenthost.connect.frontend.with.backend.Model.Event.SingleElimEvent;
@@ -383,14 +386,19 @@ public class TournamentController {
         }
     }
 
-    // Record match result
-    @PostMapping("/matches/{matchId}/result")
-    public ResponseEntity<?> recordMatchResult(@PathVariable Long matchId, @RequestBody MatchResultRequest request) {
+    // Record match result with tournament context validation
+    @PostMapping("/{tournamentId}/matches/{matchId}/result")
+    public ResponseEntity<?> recordMatchResult(
+            @PathVariable Long tournamentId,
+            @PathVariable Long matchId,
+            @RequestBody MatchResultRequest request) {
         try {
             User currentUser = getCurrentUser();
-            tournamentService.verifyMatchEditPermission(matchId, currentUser);
+            // Verify user has permission to edit this tournament
+            tournamentService.verifyEditPermission(tournamentId, currentUser);
 
-            tournamentService.recordMatchResult(matchId, request.getWinnerId(), request.getScore());
+            // Verify the match belongs to this tournament and record the result
+            tournamentService.recordMatchResult(tournamentId, matchId, request.getWinnerId(), request.getScore());
             return ResponseEntity.ok().build();
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(e.getMessage());
@@ -490,6 +498,151 @@ public class TournamentController {
             User currentUser = getCurrentUser();
             tournamentService.removeAuthorizedEditor(id, editorId, currentUser);
             return ResponseEntity.ok().build();
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    // ==================== POINTS DISTRIBUTION ENDPOINTS ====================
+
+    /**
+     * Set or update points distribution for a specific event
+     * POST /api/tournaments/{tournamentId}/event/{eventIndex}/points-distribution
+     * Body: { "pointsMap": { "1": 10000, "2": 8000, "3": 6000, "5": 4000, "9": 2000 } }
+     */
+    @PostMapping("/{tournamentId}/event/{eventIndex}/points-distribution")
+    public ResponseEntity<?> setPointsDistribution(
+            @PathVariable Long tournamentId,
+            @PathVariable int eventIndex,
+            @RequestBody PointsDistributionRequest request) {
+        try {
+            User currentUser = getCurrentUser();
+            tournamentService.verifyEditPermission(tournamentId, currentUser);
+
+            PointsDistribution pointsDistribution = tournamentService.setPointsDistribution(
+                    tournamentId, eventIndex, request.getPointsMap());
+
+            PointsDistributionDTO dto = new PointsDistributionDTO();
+            dto.setId(pointsDistribution.getId());
+            dto.setTournamentId(tournamentId);
+            dto.setEventIndex(eventIndex);
+            dto.setPointsMap(pointsDistribution.getPointsMap());
+
+            return ResponseEntity.ok(dto);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    /**
+     * Get points distribution for a specific event
+     * GET /api/tournaments/{tournamentId}/event/{eventIndex}/points-distribution
+     */
+    @GetMapping("/{tournamentId}/event/{eventIndex}/points-distribution")
+    public ResponseEntity<?> getPointsDistribution(
+            @PathVariable Long tournamentId,
+            @PathVariable int eventIndex) {
+        try {
+            PointsDistribution pointsDistribution = tournamentService.getPointsDistribution(tournamentId, eventIndex);
+
+            if (pointsDistribution == null) {
+                return ResponseEntity.ok().body(null);
+            }
+
+            PointsDistributionDTO dto = new PointsDistributionDTO();
+            dto.setId(pointsDistribution.getId());
+            dto.setTournamentId(tournamentId);
+            dto.setEventIndex(eventIndex);
+            dto.setPointsMap(pointsDistribution.getPointsMap());
+
+            return ResponseEntity.ok(dto);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    /**
+     * Get all points distributions for a tournament
+     * GET /api/tournaments/{tournamentId}/points-distributions
+     */
+    @GetMapping("/{tournamentId}/points-distributions")
+    public ResponseEntity<?> getAllPointsDistributions(@PathVariable Long tournamentId) {
+        try {
+            List<PointsDistribution> pointsDistributions = tournamentService.getAllPointsDistributions(tournamentId);
+            List<PointsDistributionDTO> dtos = new ArrayList<>();
+
+            for (PointsDistribution pd : pointsDistributions) {
+                PointsDistributionDTO dto = new PointsDistributionDTO();
+                dto.setId(pd.getId());
+                dto.setTournamentId(tournamentId);
+                dto.setEventIndex(pd.getEvent().getIndex());
+                dto.setPointsMap(pd.getPointsMap());
+                dtos.add(dto);
+            }
+
+            return ResponseEntity.ok(dtos);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    /**
+     * Calculate and get points for a specific event
+     * GET /api/tournaments/{tournamentId}/event/{eventIndex}/points
+     * Returns: { "userId": points, ... }
+     */
+    @GetMapping("/{tournamentId}/event/{eventIndex}/points")
+    public ResponseEntity<?> calculateEventPoints(@PathVariable Long tournamentId, @PathVariable int eventIndex) {
+        try {
+            Map<User, Integer> userPoints = tournamentService.calculateEventPoints(tournamentId, eventIndex);
+
+            // Convert to proper JSON format: List of {user: UserDTO, points: Integer}
+            List<Map<String, Object>> result = new ArrayList<>();
+            for (Map.Entry<User, Integer> entry : userPoints.entrySet()) {
+                User user = entry.getKey();
+                UserDTO userDTO = new UserDTO();
+                userDTO.setId(user.getId());
+                userDTO.setUsername(user.getUsername());
+                userDTO.setName(user.getName());
+
+                Map<String, Object> playerPoints = new TreeMap<>();
+                playerPoints.put("user", userDTO);
+                playerPoints.put("points", entry.getValue());
+                result.add(playerPoints);
+            }
+
+            return ResponseEntity.ok(result);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    /**
+     * Calculate and get cumulative tournament points across all events
+     * GET /api/tournaments/{tournamentId}/cumulative-points
+     * Returns: Map of UserDTO -> total points across all events
+     */
+    @GetMapping("/{tournamentId}/cumulative-points")
+    public ResponseEntity<?> calculateCumulativeTournamentPoints(@PathVariable Long tournamentId) {
+        try {
+            Map<User, Integer> cumulativePoints = tournamentService.calculateCumulativeTournamentPoints(tournamentId);
+
+            // Convert to proper JSON format: List of {user: UserDTO, points: Integer}
+            List<Map<String, Object>> result = new ArrayList<>();
+            for (Map.Entry<User, Integer> entry : cumulativePoints.entrySet()) {
+                User user = entry.getKey();
+                UserDTO userDTO = new UserDTO();
+                userDTO.setId(user.getId());
+                userDTO.setUsername(user.getUsername());
+                userDTO.setName(user.getName());
+
+                Map<String, Object> playerPoints = new TreeMap<>();
+                playerPoints.put("user", userDTO);
+                playerPoints.put("points", entry.getValue());
+                result.add(playerPoints);
+            }
+
+            return ResponseEntity.ok(result);
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(e.getMessage());
         }
