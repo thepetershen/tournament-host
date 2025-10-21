@@ -130,10 +130,28 @@ public abstract class BaseEvent implements Event {
         this.playerSeeds.clear();
     }
 
+    // Registration system: Tracks pending signups for this event
+    @OneToMany(mappedBy = "event", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<EventRegistration> registrations;
+
+    public List<EventRegistration> getRegistrations() {
+        return registrations;
+    }
+
+    public void setRegistrations(List<EventRegistration> registrations) {
+        this.registrations = registrations;
+    }
+
+    public void addRegistration(EventRegistration registration) {
+        this.registrations.add(registration);
+        registration.setEvent(this);
+    }
+
     public BaseEvent() {
         // Initialize collections to avoid NullPointerException
         this.players = new ArrayList<>();
         this.playerSeeds = new HashMap<>();
+        this.registrations = new ArrayList<>();
         this.initialized = false;
     }
 
@@ -143,6 +161,7 @@ public abstract class BaseEvent implements Event {
         this.name = name;
         this.players = (players != null) ? players : new ArrayList<>();
         this.playerSeeds = new HashMap<>();
+        this.registrations = new ArrayList<>();
         this.tournament = tournament;
         this.index = index;
     }

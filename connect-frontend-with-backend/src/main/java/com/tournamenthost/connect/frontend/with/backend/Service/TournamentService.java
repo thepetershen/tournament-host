@@ -4,6 +4,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -18,12 +19,14 @@ import com.tournamenthost.connect.frontend.with.backend.Model.PointsDistribution
 import com.tournamenthost.connect.frontend.with.backend.Model.League;
 import com.tournamenthost.connect.frontend.with.backend.Model.LeaguePlayerRanking;
 import com.tournamenthost.connect.frontend.with.backend.Model.Event.BaseEvent;
+import com.tournamenthost.connect.frontend.with.backend.Model.Event.EventRegistration;
 import com.tournamenthost.connect.frontend.with.backend.Repository.TournamentRepository;
 import com.tournamenthost.connect.frontend.with.backend.Repository.UserRepository;
 import com.tournamenthost.connect.frontend.with.backend.Repository.EventRepository;
 import com.tournamenthost.connect.frontend.with.backend.Repository.MatchRepository;
 import com.tournamenthost.connect.frontend.with.backend.Repository.PointsDistributionRepository;
 import com.tournamenthost.connect.frontend.with.backend.Repository.LeagueRepository;
+import com.tournamenthost.connect.frontend.with.backend.Repository.EventRegistrationRepository;
 import com.tournamenthost.connect.frontend.with.backend.Model.Event.EventType;
 import com.tournamenthost.connect.frontend.with.backend.Model.Event.Round;
 import com.tournamenthost.connect.frontend.with.backend.Model.Event.SingleElimEvent;
@@ -54,6 +57,9 @@ public class TournamentService {
 
     @Autowired
     private LeagueRepository leagueRepo;
+
+    @Autowired
+    private EventRegistrationRepository eventRegistrationRepo;
 
     public Tournament createTournament(String name, User owner) {
         if (tournamentRepo.existsByNameIgnoreCaseAndSpaces(name)) {
@@ -1249,5 +1255,125 @@ public class TournamentService {
         // Set the seeds
         event.setPlayerSeeds(playerSeeds);
         eventRepo.save(event);
+    }
+
+    // ==================== EVENT REGISTRATION METHODS ====================
+
+    /**
+     * Player signs up for an event (creates pending registration)
+     */
+    public EventRegistration signUpForEvent(Long tournamentId, int eventIndex, User user) {
+        BaseEvent event = getEventsForTournament(tournamentId).get(eventIndex);
+
+        // Validate: Event must not be initialized yet
+        if (event.isEventInitialized()) {
+            throw new IllegalStateException("Cannot sign up for an event that has already been initialized");
+        }
+
+        // Validate: User not already registered
+        if (eventRegistrationRepo.existsByEventAndUser(event, user)) {
+            throw new IllegalArgumentException("You have already signed up for this event");
+        }
+
+        // Validate: User not already a player
+        if (event.getPlayers().contains(user)) {
+            throw new IllegalArgumentException("You are already a player in this event");
+        }
+
+        // Create and save registration
+        EventRegistration registration = new EventRegistration(event, user);
+        return eventRegistrationRepo.save(registration);
+    }
+
+    /**
+     * Get all registrations for an event (for moderators)
+     */
+    public List<EventRegistration> getEventRegistrations(Long tournamentId, int eventIndex) {
+        BaseEvent event = getEventsForTournament(tournamentId).get(eventIndex);
+        return eventRegistrationRepo.findByEvent(event);
+    }
+
+    /**
+     * Get pending registrations for an event (for moderators)
+     */
+    public List<EventRegistration> getPendingRegistrations(Long tournamentId, int eventIndex) {
+        BaseEvent event = getEventsForTournament(tournamentId).get(eventIndex);
+        return eventRegistrationRepo.findByEventAndStatus(event, EventRegistration.RegistrationStatus.PENDING);
+    }
+
+    /**
+     * Approve multiple registrations at once
+     */
+    public void approveRegistrations(Long tournamentId, int eventIndex, List<Long> registrationIds, User reviewer) {
+        BaseEvent event = getEventsForTournament(tournamentId).get(eventIndex);
+
+        // Validate: Event must not be initialized
+        if (event.isEventInitialized()) {
+            throw new IllegalStateException("Cannot approve registrations after event has been initialized");
+        }
+
+        for (Long registrationId : registrationIds) {
+            EventRegistration registration = eventRegistrationRepo.findById(registrationId)
+                .orElseThrow(() -> new IllegalArgumentException("Registration not found: " + registrationId));
+
+            // Verify registration belongs to this event
+            if (!registration.getEvent().getId().equals(event.getId())) {
+                throw new IllegalArgumentException("Registration " + registrationId + " does not belong to this event");
+            }
+
+            // Skip if already approved
+            if (registration.getStatus() == EventRegistration.RegistrationStatus.APPROVED) {
+                continue;
+            }
+
+            // Approve the registration
+            registration.setStatus(EventRegistration.RegistrationStatus.APPROVED);
+            registration.setReviewedAt(new Date());
+            registration.setReviewedBy(reviewer);
+            eventRegistrationRepo.save(registration);
+
+            // Add player to event
+            event.addPlayer(registration.getUser());
+        }
+
+        eventRepo.save(event);
+    }
+
+    /**
+     * Reject a registration
+     */
+    public void rejectRegistration(Long tournamentId, int eventIndex, Long registrationId, User reviewer) {
+        BaseEvent event = getEventsForTournament(tournamentId).get(eventIndex);
+
+        EventRegistration registration = eventRegistrationRepo.findById(registrationId)
+            .orElseThrow(() -> new IllegalArgumentException("Registration not found"));
+
+        // Verify registration belongs to this event
+        if (!registration.getEvent().getId().equals(event.getId())) {
+            throw new IllegalArgumentException("Registration does not belong to this event");
+        }
+
+        // Reject the registration
+        registration.setStatus(EventRegistration.RegistrationStatus.REJECTED);
+        registration.setReviewedAt(new Date());
+        registration.setReviewedBy(reviewer);
+        eventRegistrationRepo.save(registration);
+    }
+
+    /**
+     * Cancel your own registration (before it's reviewed)
+     */
+    public void cancelRegistration(Long tournamentId, int eventIndex, User user) {
+        BaseEvent event = getEventsForTournament(tournamentId).get(eventIndex);
+
+        EventRegistration registration = eventRegistrationRepo.findByEventAndUser(event, user)
+            .orElseThrow(() -> new IllegalArgumentException("Registration not found"));
+
+        // Can only cancel if still pending
+        if (registration.getStatus() != EventRegistration.RegistrationStatus.PENDING) {
+            throw new IllegalStateException("Can only cancel pending registrations");
+        }
+
+        eventRegistrationRepo.delete(registration);
     }
 }

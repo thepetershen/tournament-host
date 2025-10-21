@@ -165,8 +165,8 @@ This project is open source and available under the [MIT License](LICENSE).
 
 Todos:
 
-seeding using ranking
 
+Frontend: Support for every event type. Event pages and how that looks. Hosting. player pages. League pages. 
 actual hosting part: sign up(and approval of said players), winners, announcements, ability to advertise tournament, picture storage, seeding using ranking
 
 Better UI in general (pretty important)

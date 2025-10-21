@@ -14,10 +14,13 @@ import com.tournamenthost.connect.frontend.with.backend.DTO.PointsDistributionDT
 import com.tournamenthost.connect.frontend.with.backend.DTO.ManualSeedingRequest;
 import com.tournamenthost.connect.frontend.with.backend.DTO.AutoSeedingRequest;
 import com.tournamenthost.connect.frontend.with.backend.DTO.SeededUserDTO;
+import com.tournamenthost.connect.frontend.with.backend.DTO.EventRegistrationDTO;
+import com.tournamenthost.connect.frontend.with.backend.DTO.ApproveRegistrationsRequest;
 import com.tournamenthost.connect.frontend.with.backend.Model.Match;
 import com.tournamenthost.connect.frontend.with.backend.Model.Tournament;
 import com.tournamenthost.connect.frontend.with.backend.Model.User;
 import com.tournamenthost.connect.frontend.with.backend.Model.PointsDistribution;
+import com.tournamenthost.connect.frontend.with.backend.Model.Event.EventRegistration;
 import com.tournamenthost.connect.frontend.with.backend.Model.Event.BaseEvent;
 import com.tournamenthost.connect.frontend.with.backend.Model.Event.EventType;
 import com.tournamenthost.connect.frontend.with.backend.Model.Event.SingleElimEvent;
@@ -734,6 +737,123 @@ public class TournamentController {
 
             BaseEvent event = tournamentService.getEventsForTournament(tournamentId).get(eventIndex);
             event.clearSeeds();
+            return ResponseEntity.ok().build();
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    // ==================== EVENT REGISTRATION ENDPOINTS ====================
+
+    /**
+     * Sign up for an event (any authenticated user)
+     * POST /api/tournaments/{tournamentId}/event/{eventIndex}/signup
+     */
+    @PostMapping("/{tournamentId}/event/{eventIndex}/signup")
+    public ResponseEntity<?> signUpForEvent(@PathVariable Long tournamentId, @PathVariable int eventIndex) {
+        try {
+            User currentUser = getCurrentUser();
+            EventRegistration registration = tournamentService.signUpForEvent(tournamentId, eventIndex, currentUser);
+
+            EventRegistrationDTO dto = new EventRegistrationDTO(registration);
+            return ResponseEntity.ok(dto);
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    /**
+     * Cancel your own registration
+     * DELETE /api/tournaments/{tournamentId}/event/{eventIndex}/signup
+     */
+    @DeleteMapping("/{tournamentId}/event/{eventIndex}/signup")
+    public ResponseEntity<?> cancelRegistration(@PathVariable Long tournamentId, @PathVariable int eventIndex) {
+        try {
+            User currentUser = getCurrentUser();
+            tournamentService.cancelRegistration(tournamentId, eventIndex, currentUser);
+            return ResponseEntity.ok().build();
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    /**
+     * Get all registrations for an event (moderators only)
+     * GET /api/tournaments/{tournamentId}/event/{eventIndex}/registrations
+     */
+    @GetMapping("/{tournamentId}/event/{eventIndex}/registrations")
+    public ResponseEntity<?> getEventRegistrations(@PathVariable Long tournamentId, @PathVariable int eventIndex) {
+        try {
+            User currentUser = getCurrentUser();
+            tournamentService.verifyEditPermission(tournamentId, currentUser);
+
+            List<EventRegistration> registrations = tournamentService.getEventRegistrations(tournamentId, eventIndex);
+            List<EventRegistrationDTO> dtos = registrations.stream()
+                .map(EventRegistrationDTO::new)
+                .toList();
+
+            return ResponseEntity.ok(dtos);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    /**
+     * Get pending registrations for an event (moderators only)
+     * GET /api/tournaments/{tournamentId}/event/{eventIndex}/registrations/pending
+     */
+    @GetMapping("/{tournamentId}/event/{eventIndex}/registrations/pending")
+    public ResponseEntity<?> getPendingRegistrations(@PathVariable Long tournamentId, @PathVariable int eventIndex) {
+        try {
+            User currentUser = getCurrentUser();
+            tournamentService.verifyEditPermission(tournamentId, currentUser);
+
+            List<EventRegistration> registrations = tournamentService.getPendingRegistrations(tournamentId, eventIndex);
+            List<EventRegistrationDTO> dtos = registrations.stream()
+                .map(EventRegistrationDTO::new)
+                .toList();
+
+            return ResponseEntity.ok(dtos);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    /**
+     * Approve multiple registrations (moderators only)
+     * POST /api/tournaments/{tournamentId}/event/{eventIndex}/registrations/approve
+     * Body: { "registrationIds": [1, 2, 3] }
+     */
+    @PostMapping("/{tournamentId}/event/{eventIndex}/registrations/approve")
+    public ResponseEntity<?> approveRegistrations(
+            @PathVariable Long tournamentId,
+            @PathVariable int eventIndex,
+            @RequestBody ApproveRegistrationsRequest request) {
+        try {
+            User currentUser = getCurrentUser();
+            tournamentService.verifyEditPermission(tournamentId, currentUser);
+
+            tournamentService.approveRegistrations(tournamentId, eventIndex, request.getRegistrationIds(), currentUser);
+            return ResponseEntity.ok().build();
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    /**
+     * Reject a registration (moderators only)
+     * POST /api/tournaments/{tournamentId}/event/{eventIndex}/registrations/{registrationId}/reject
+     */
+    @PostMapping("/{tournamentId}/event/{eventIndex}/registrations/{registrationId}/reject")
+    public ResponseEntity<?> rejectRegistration(
+            @PathVariable Long tournamentId,
+            @PathVariable int eventIndex,
+            @PathVariable Long registrationId) {
+        try {
+            User currentUser = getCurrentUser();
+            tournamentService.verifyEditPermission(tournamentId, currentUser);
+
+            tournamentService.rejectRegistration(tournamentId, eventIndex, registrationId, currentUser);
             return ResponseEntity.ok().build();
         } catch (IllegalArgumentException | IllegalStateException e) {
             return ResponseEntity.badRequest().body(e.getMessage());
