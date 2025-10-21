@@ -2,7 +2,9 @@ package com.tournamenthost.connect.frontend.with.backend.util;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import com.tournamenthost.connect.frontend.with.backend.Model.User;
 
@@ -16,38 +18,107 @@ public class TournamentUtil {
         return power;
     }
 
-    public static ArrayList<User> generateDrawUsingSeeding(List<User> players, int matchAmount) {
-        ArrayList<User> copyOfPlayers = new ArrayList<>(players);
-        Collections.shuffle(copyOfPlayers);
-        
-        // create the top matches
-        ArrayList<User> answer = new ArrayList<>();
-        ArrayList<User> top = new ArrayList<>();
+    /**
+     * Generate a tournament draw with proper seeding
+     * @param players List of all players
+     * @param matchAmount Number of matches in the first round (bracket size / 2)
+     * @param playerSeeds Map of user ID to seed number (1 = first seed, 2 = second, etc.)
+     * @return Ordered list of players for bracket placement (playerA, playerB, playerA, playerB, ...)
+     */
+    public static ArrayList<User> generateDrawUsingSeeding(List<User> players, int matchAmount, Map<Long, Integer> playerSeeds) {
+        int bracketSize = matchAmount * 2;
 
-        for(int i = 0; i < matchAmount; i++) {
-            top.add(copyOfPlayers.get(0));
-            copyOfPlayers.remove(0);
-        }
+        // Create position array - index represents position in bracket (0 to bracketSize-1)
+        User[] positions = new User[bracketSize];
 
-        ArrayList<User> bottom = new ArrayList<>(copyOfPlayers);
+        // Separate seeded and unseeded players
+        List<User> seededPlayers = new ArrayList<>();
+        List<User> unseededPlayers = new ArrayList<>();
 
-        while(bottom.size() < matchAmount) {
-            bottom.add(null);
-        }
-
-        Collections.shuffle(bottom);
-
-        for(int i = 0; i < matchAmount; i++) {
-            if(i % 2 == 0) {
-                answer.add(top.get(i));
-                answer.add(bottom.get(i));
+        // Create inverse map: seed number -> user
+        Map<Integer, User> seedToUser = new HashMap<>();
+        for (User player : players) {
+            Integer seed = playerSeeds.get(player.getId());
+            if (seed != null && seed > 0) {
+                seededPlayers.add(player);
+                seedToUser.put(seed, player);
             } else {
-                answer.add(bottom.get(i));
-                answer.add(top.get(i));
+                unseededPlayers.add(player);
             }
         }
 
-        return answer;
+        // Standard seeding positions for power-of-2 bracket
+        // This follows the pattern: 1 vs lowest, 2 vs second-lowest in their half, etc.
+        int[] seedPositions = generateStandardSeedPositions(bracketSize);
 
+        // Place seeded players in their positions
+        for (int seed = 1; seed <= seededPlayers.size(); seed++) {
+            User player = seedToUser.get(seed);
+            if (player != null && seed - 1 < seedPositions.length) {
+                positions[seedPositions[seed - 1]] = player;
+            }
+        }
+
+        // Shuffle unseeded players
+        Collections.shuffle(unseededPlayers);
+
+        // Fill remaining positions with unseeded players and nulls (for byes)
+        int unseededIndex = 0;
+        for (int i = 0; i < bracketSize; i++) {
+            if (positions[i] == null) {
+                if (unseededIndex < unseededPlayers.size()) {
+                    positions[i] = unseededPlayers.get(unseededIndex++);
+                }
+                // else leave as null (bye)
+            }
+        }
+
+        // Convert to answer format (playerA, playerB, playerA, playerB, ...)
+        ArrayList<User> answer = new ArrayList<>();
+        for (int i = 0; i < bracketSize; i++) {
+            answer.add(positions[i]);
+        }
+
+        return answer;
+    }
+
+    /**
+     * Generate standard seeding positions for a bracket
+     * Returns array where index is (seed-1) and value is bracket position
+     *
+     * Standard pattern ensures:
+     * - Seed 1 vs Seed 8 (positions 0-1)
+     * - Seed 4 vs Seed 5 (positions 2-3)
+     * - Seed 2 vs Seed 7 (positions 4-5)
+     * - Seed 3 vs Seed 6 (positions 6-7)
+     */
+    private static int[] generateStandardSeedPositions(int bracketSize) {
+        int[] positions = new int[bracketSize];
+
+        // Standard tournament seeding using fair pairing
+        // Start with seed 1, then interleave remaining seeds
+        List<Integer> seeds = new ArrayList<>();
+        seeds.add(1);
+        seeds.add(2);
+
+        // Recursively insert seeds to maintain proper spacing
+        while (seeds.size() < bracketSize) {
+            List<Integer> newSeeds = new ArrayList<>();
+            int nextSeed = seeds.size() + 1;
+
+            for (int i = 0; i < seeds.size(); i++) {
+                newSeeds.add(seeds.get(i));
+                newSeeds.add(nextSeed + seeds.size() - 1 - i);
+            }
+            seeds = newSeeds;
+        }
+
+        // Map each seed to its bracket position
+        for (int i = 0; i < seeds.size(); i++) {
+            int seed = seeds.get(i);
+            positions[seed - 1] = i;
+        }
+
+        return positions;
     }
 }

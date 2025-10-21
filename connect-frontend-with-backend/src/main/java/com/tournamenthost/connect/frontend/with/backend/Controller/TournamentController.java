@@ -11,6 +11,9 @@ import com.tournamenthost.connect.frontend.with.backend.DTO.UserDTO;
 import com.tournamenthost.connect.frontend.with.backend.DTO.UserGetRequest;
 import com.tournamenthost.connect.frontend.with.backend.DTO.PointsDistributionRequest;
 import com.tournamenthost.connect.frontend.with.backend.DTO.PointsDistributionDTO;
+import com.tournamenthost.connect.frontend.with.backend.DTO.ManualSeedingRequest;
+import com.tournamenthost.connect.frontend.with.backend.DTO.AutoSeedingRequest;
+import com.tournamenthost.connect.frontend.with.backend.DTO.SeededUserDTO;
 import com.tournamenthost.connect.frontend.with.backend.Model.Match;
 import com.tournamenthost.connect.frontend.with.backend.Model.Tournament;
 import com.tournamenthost.connect.frontend.with.backend.Model.User;
@@ -271,7 +274,7 @@ public class TournamentController {
                 for (List<Match> round : draw) {
                     List<Object> roundDTOs = new ArrayList<>();
                     for (Match match : round) {
-                        MatchDTO dto = createMatchDTO(match);
+                        MatchDTO dto = createMatchDTO(match, event);
                         roundDTOs.add(dto);
                     }
                     dtoDraw.add(roundDTOs);
@@ -282,16 +285,13 @@ public class TournamentController {
                 Map<User, List<Match>> draw = (Map<User, List<Match>>) drawObject;
                 for (Map.Entry<User, List<Match>> entry : draw.entrySet()) {
                     User user = entry.getKey();
-                    UserDTO userDTO = new UserDTO();
-                    userDTO.setId(user.getId());
-                    userDTO.setUsername(user.getUsername());
-                    userDTO.setName(user.getName());
+                    UserDTO userDTO = createUserDTO(user, event);
 
                     List<Object> playerRow = new ArrayList<>();
                     playerRow.add(userDTO);
 
                     for (Match match : entry.getValue()) {
-                        MatchDTO dto = createMatchDTO(match);
+                        MatchDTO dto = createMatchDTO(match, event);
                         playerRow.add(dto);
                     }
                     dtoDraw.add(playerRow);
@@ -309,7 +309,7 @@ public class TournamentController {
                 for (List<Match> round : draw.get("winners")) {
                     List<MatchDTO> roundDTOs = new ArrayList<>();
                     for (Match match : round) {
-                        roundDTOs.add(createMatchDTO(match));
+                        roundDTOs.add(createMatchDTO(match, event));
                     }
                     winnersDTOs.add(roundDTOs);
                 }
@@ -320,7 +320,7 @@ public class TournamentController {
                 for (List<Match> round : draw.get("losers")) {
                     List<MatchDTO> roundDTOs = new ArrayList<>();
                     for (Match match : round) {
-                        roundDTOs.add(createMatchDTO(match));
+                        roundDTOs.add(createMatchDTO(match, event));
                     }
                     losersDTOs.add(roundDTOs);
                 }
@@ -405,8 +405,13 @@ public class TournamentController {
         }
     }
 
-    // Helper method to create MatchDTO with all fields
+    // Helper method to create MatchDTO with all fields (no seed info)
     private MatchDTO createMatchDTO(Match match) {
+        return createMatchDTO(match, null);
+    }
+
+    // Helper method to create MatchDTO with seed information
+    private MatchDTO createMatchDTO(Match match, BaseEvent event) {
         MatchDTO dto = new MatchDTO();
         dto.setId(match.getId());
         dto.setCompleted(match.isCompleted());
@@ -416,31 +421,40 @@ public class TournamentController {
         User playerB = match.getPlayerB();
         User winner = match.getWinner();
 
-        UserDTO playerADTO = new UserDTO();
-        UserDTO playerBDTO = new UserDTO();
-        UserDTO winnerDTO = new UserDTO();
-
-        if (playerA != null) {
-            playerADTO.setUsername(playerA.getUsername());
-            playerADTO.setId(playerA.getId());
-            playerADTO.setName(playerA.getName());
-        }
-        if (playerB != null) {
-            playerBDTO.setUsername(playerB.getUsername());
-            playerBDTO.setId(playerB.getId());
-            playerBDTO.setName(playerB.getName());
-        }
-        if (winner != null) {
-            winnerDTO.setUsername(winner.getUsername());
-            winnerDTO.setId(winner.getId());
-            winnerDTO.setName(winner.getName());
-        }
+        // Use SeededUserDTO if event is provided, otherwise regular UserDTO
+        UserDTO playerADTO = createUserDTO(playerA, event);
+        UserDTO playerBDTO = createUserDTO(playerB, event);
+        UserDTO winnerDTO = createUserDTO(winner, event);
 
         dto.setPlayerA(playerADTO);
         dto.setPlayerB(playerBDTO);
         dto.setWinner(winner != null ? winnerDTO : null);
 
         return dto;
+    }
+
+    // Helper to create UserDTO with optional seed information
+    private UserDTO createUserDTO(User user, BaseEvent event) {
+        if (user == null) {
+            return new UserDTO();
+        }
+
+        // Check if we should include seed information
+        if (event != null && event.getPlayerSeeds() != null) {
+            Integer seed = event.getPlayerSeed(user.getId());
+            SeededUserDTO dto = new SeededUserDTO();
+            dto.setId(user.getId());
+            dto.setUsername(user.getUsername());
+            dto.setName(user.getName());
+            dto.setSeed(seed);
+            return dto;
+        } else {
+            UserDTO dto = new UserDTO();
+            dto.setId(user.getId());
+            dto.setUsername(user.getUsername());
+            dto.setName(user.getName());
+            return dto;
+        }
     }
 
     // ==================== EDITOR MANAGEMENT ENDPOINTS ====================
@@ -644,6 +658,84 @@ public class TournamentController {
 
             return ResponseEntity.ok(result);
         } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    // ==================== SEEDING ENDPOINTS ====================
+
+    /**
+     * Manually set seeds for an event
+     * POST /api/tournaments/{tournamentId}/event/{eventIndex}/seeds/manual
+     * Body: { "playerSeeds": { "userId": seedNumber, ... } }
+     * Example: { "playerSeeds": { "1": 1, "2": 2, "3": 3, "4": 4 } }
+     */
+    @PostMapping("/{tournamentId}/event/{eventIndex}/seeds/manual")
+    public ResponseEntity<?> setManualSeeds(
+            @PathVariable Long tournamentId,
+            @PathVariable int eventIndex,
+            @RequestBody ManualSeedingRequest request) {
+        try {
+            User currentUser = getCurrentUser();
+            tournamentService.verifyEditPermission(tournamentId, currentUser);
+
+            tournamentService.setManualSeeds(tournamentId, eventIndex, request.getPlayerSeeds());
+            return ResponseEntity.ok().build();
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    /**
+     * Automatically set seeds from league rankings
+     * POST /api/tournaments/{tournamentId}/event/{eventIndex}/seeds/auto
+     * Body: { "numberOfSeeds": 8 }
+     */
+    @PostMapping("/{tournamentId}/event/{eventIndex}/seeds/auto")
+    public ResponseEntity<?> setAutoSeeds(
+            @PathVariable Long tournamentId,
+            @PathVariable int eventIndex,
+            @RequestBody AutoSeedingRequest request) {
+        try {
+            User currentUser = getCurrentUser();
+            tournamentService.verifyEditPermission(tournamentId, currentUser);
+
+            tournamentService.setAutoSeeds(tournamentId, eventIndex, request.getNumberOfSeeds());
+            return ResponseEntity.ok().build();
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    /**
+     * Get current seeds for an event
+     * GET /api/tournaments/{tournamentId}/event/{eventIndex}/seeds
+     * Returns: { "userId": seedNumber, ... }
+     */
+    @GetMapping("/{tournamentId}/event/{eventIndex}/seeds")
+    public ResponseEntity<?> getSeeds(@PathVariable Long tournamentId, @PathVariable int eventIndex) {
+        try {
+            BaseEvent event = tournamentService.getEventsForTournament(tournamentId).get(eventIndex);
+            return ResponseEntity.ok(event.getPlayerSeeds());
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    /**
+     * Clear all seeds for an event
+     * DELETE /api/tournaments/{tournamentId}/event/{eventIndex}/seeds
+     */
+    @DeleteMapping("/{tournamentId}/event/{eventIndex}/seeds")
+    public ResponseEntity<?> clearSeeds(@PathVariable Long tournamentId, @PathVariable int eventIndex) {
+        try {
+            User currentUser = getCurrentUser();
+            tournamentService.verifyEditPermission(tournamentId, currentUser);
+
+            BaseEvent event = tournamentService.getEventsForTournament(tournamentId).get(eventIndex);
+            event.clearSeeds();
+            return ResponseEntity.ok().build();
+        } catch (IllegalArgumentException | IllegalStateException e) {
             return ResponseEntity.badRequest().body(e.getMessage());
         }
     }

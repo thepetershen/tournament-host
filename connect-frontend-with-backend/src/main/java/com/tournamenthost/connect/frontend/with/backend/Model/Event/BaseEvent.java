@@ -3,7 +3,9 @@ package com.tournamenthost.connect.frontend.with.backend.Model.Event;
 import jakarta.persistence.*;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import com.tournamenthost.connect.frontend.with.backend.Model.Tournament;
 import com.tournamenthost.connect.frontend.with.backend.Model.User;
@@ -88,9 +90,50 @@ public abstract class BaseEvent implements Event {
         this.initialized =false;
     }
 
+    // Seeding system: Maps User ID to their seed number (1 = first seed, 2 = second seed, etc.)
+    @ElementCollection
+    @CollectionTable(name = "event_seeds", joinColumns = @JoinColumn(name = "event_id"))
+    @MapKeyColumn(name = "user_id")
+    @Column(name = "seed_number")
+    private Map<Long, Integer> playerSeeds;
+
+    public Map<Long, Integer> getPlayerSeeds() {
+        return playerSeeds;
+    }
+
+    public void setPlayerSeeds(Map<Long, Integer> playerSeeds) {
+        if (this.initialized) {
+            throw new IllegalStateException("Cannot set seeds after event has been initialized");
+        }
+        this.playerSeeds = playerSeeds;
+    }
+
+    public void setPlayerSeed(Long userId, Integer seed) {
+        if (this.initialized) {
+            throw new IllegalStateException("Cannot set seeds after event has been initialized");
+        }
+        this.playerSeeds.put(userId, seed);
+    }
+
+    public Integer getPlayerSeed(Long userId) {
+        return playerSeeds.get(userId);
+    }
+
+    public boolean isPlayerSeeded(Long userId) {
+        return playerSeeds.containsKey(userId);
+    }
+
+    public void clearSeeds() {
+        if (this.initialized) {
+            throw new IllegalStateException("Cannot clear seeds after event has been initialized");
+        }
+        this.playerSeeds.clear();
+    }
+
     public BaseEvent() {
         // Initialize collections to avoid NullPointerException
         this.players = new ArrayList<>();
+        this.playerSeeds = new HashMap<>();
         this.initialized = false;
     }
 
@@ -99,6 +142,7 @@ public abstract class BaseEvent implements Event {
         this.initialized =false;
         this.name = name;
         this.players = (players != null) ? players : new ArrayList<>();
+        this.playerSeeds = new HashMap<>();
         this.tournament = tournament;
         this.index = index;
     }

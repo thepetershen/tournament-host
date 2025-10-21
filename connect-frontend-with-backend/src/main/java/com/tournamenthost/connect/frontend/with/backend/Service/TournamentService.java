@@ -4,6 +4,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -14,12 +15,15 @@ import com.tournamenthost.connect.frontend.with.backend.Model.Match;
 import com.tournamenthost.connect.frontend.with.backend.Model.Tournament;
 import com.tournamenthost.connect.frontend.with.backend.Model.User;
 import com.tournamenthost.connect.frontend.with.backend.Model.PointsDistribution;
+import com.tournamenthost.connect.frontend.with.backend.Model.League;
+import com.tournamenthost.connect.frontend.with.backend.Model.LeaguePlayerRanking;
 import com.tournamenthost.connect.frontend.with.backend.Model.Event.BaseEvent;
 import com.tournamenthost.connect.frontend.with.backend.Repository.TournamentRepository;
 import com.tournamenthost.connect.frontend.with.backend.Repository.UserRepository;
 import com.tournamenthost.connect.frontend.with.backend.Repository.EventRepository;
 import com.tournamenthost.connect.frontend.with.backend.Repository.MatchRepository;
 import com.tournamenthost.connect.frontend.with.backend.Repository.PointsDistributionRepository;
+import com.tournamenthost.connect.frontend.with.backend.Repository.LeagueRepository;
 import com.tournamenthost.connect.frontend.with.backend.Model.Event.EventType;
 import com.tournamenthost.connect.frontend.with.backend.Model.Event.Round;
 import com.tournamenthost.connect.frontend.with.backend.Model.Event.SingleElimEvent;
@@ -47,6 +51,9 @@ public class TournamentService {
 
     @Autowired
     private PointsDistributionRepository pointsDistributionRepo;
+
+    @Autowired
+    private LeagueRepository leagueRepo;
 
     public Tournament createTournament(String name, User owner) {
         if (tournamentRepo.existsByNameIgnoreCaseAndSpaces(name)) {
@@ -169,9 +176,12 @@ public class TournamentService {
         }
         if (event.isEventInitialized()) {
             throw new IllegalArgumentException("This event has already been initialized, please deinitialize it first");
-        } else {
-            event.initializeEvent();
         }
+
+        // Validate seeding before initialization
+        validateSeeding(event);
+
+        event.initializeEvent();
         if (event instanceof SingleElimEvent singleElim) {
             int matchAmount = TournamentUtil.nextPowerOfTwo(players.size()) / 2;
             int matchAmountForCurRound = matchAmount;
@@ -188,7 +198,7 @@ public class TournamentService {
                 eventInNestedArr.add(curRoundMatches);
                 matchAmountForCurRound /= 2;
             }
-            ArrayList<User> draw = TournamentUtil.generateDrawUsingSeeding(players, matchAmount);
+            ArrayList<User> draw = TournamentUtil.generateDrawUsingSeeding(players, matchAmount, event.getPlayerSeeds());
             List<Match> bottomRoundMatches = eventInNestedArr.get(0);
             for (int i = 0; i < draw.size(); i++) {
                 if (i % 2 == 0) {
@@ -499,7 +509,7 @@ public class TournamentService {
         int matchCount = bracketSize / 2;
 
         // Generate seeded draw
-        ArrayList<User> draw = TournamentUtil.generateDrawUsingSeeding(players, matchCount);
+        ArrayList<User> draw = TournamentUtil.generateDrawUsingSeeding(players, matchCount, event.getPlayerSeeds());
 
         // Create rounds from bottom to top
         for (int round = 0; round < Math.log(bracketSize) / Math.log(2); round++) {
@@ -1068,5 +1078,176 @@ public class TournamentService {
         }
 
         return 0;
+    }
+
+    // ==================== SEEDING METHODS ====================
+
+    /**
+     * Validate seeding for an event before initialization
+     * @param event The event to validate
+     */
+    private void validateSeeding(BaseEvent event) {
+        Map<Long, Integer> playerSeeds = event.getPlayerSeeds();
+        if (playerSeeds == null || playerSeeds.isEmpty()) {
+            // No seeds set, that's fine
+            return;
+        }
+
+        // Validate: Only Single Elim and Double Elim can be seeded
+        if (event instanceof RoundRobinEvent) {
+            throw new IllegalArgumentException("Round Robin events cannot use seeding");
+        }
+
+        List<User> players = event.getPlayers();
+        List<Long> playerIds = players.stream().map(User::getId).toList();
+
+        // Validate: all seeded players must be in the event
+        for (Long userId : playerSeeds.keySet()) {
+            if (!playerIds.contains(userId)) {
+                throw new IllegalArgumentException("Seeded user with ID " + userId + " is not registered in this event");
+            }
+        }
+
+        // Validate: number of seeds cannot exceed number of players
+        if (playerSeeds.size() > players.size()) {
+            throw new IllegalArgumentException("Number of seeds (" + playerSeeds.size() +
+                ") cannot exceed number of players (" + players.size() + ")");
+        }
+
+        // Validate: seed numbers must be sequential starting from 1
+        List<Integer> seedNumbers = new ArrayList<>(playerSeeds.values());
+        seedNumbers.sort(Integer::compareTo);
+        for (int i = 0; i < seedNumbers.size(); i++) {
+            if (seedNumbers.get(i) != i + 1) {
+                throw new IllegalArgumentException("Seed numbers must be sequential starting from 1. Found: " + seedNumbers);
+            }
+        }
+
+        // Validate: no duplicate seed numbers
+        Set<Integer> uniqueSeeds = new HashSet<>(playerSeeds.values());
+        if (uniqueSeeds.size() != playerSeeds.values().size()) {
+            throw new IllegalArgumentException("Duplicate seed numbers found");
+        }
+    }
+
+    /**
+     * Manually set seeds for players in an event
+     * @param tournamentId Tournament ID
+     * @param eventIndex Event index
+     * @param playerSeeds Map of user ID to seed number (1 = first seed, 2 = second, etc.)
+     */
+    public void setManualSeeds(Long tournamentId, int eventIndex, Map<Long, Integer> playerSeeds) {
+        BaseEvent event = getEventsForTournament(tournamentId).get(eventIndex);
+
+        // Validate: cannot set seeds after initialization
+        if (event.isEventInitialized()) {
+            throw new IllegalStateException("Cannot set seeds after event has been initialized");
+        }
+
+        // Validate: all seeded players must be registered in the event
+        List<Long> playerIds = event.getPlayers().stream().map(User::getId).toList();
+        for (Long userId : playerSeeds.keySet()) {
+            if (!playerIds.contains(userId)) {
+                throw new IllegalArgumentException("User with ID " + userId + " is not registered in this event");
+            }
+        }
+
+        // Validate: number of seeds cannot exceed number of players
+        if (playerSeeds.size() > event.getPlayers().size()) {
+            throw new IllegalArgumentException("Number of seeds (" + playerSeeds.size() +
+                ") cannot exceed number of players (" + event.getPlayers().size() + ")");
+        }
+
+        // Validate: seed numbers must be sequential starting from 1
+        List<Integer> seedNumbers = new ArrayList<>(playerSeeds.values());
+        seedNumbers.sort(Integer::compareTo);
+        for (int i = 0; i < seedNumbers.size(); i++) {
+            if (seedNumbers.get(i) != i + 1) {
+                throw new IllegalArgumentException("Seed numbers must be sequential starting from 1. Found: " + seedNumbers);
+            }
+        }
+
+        // Validate: no duplicate seed numbers
+        Set<Integer> uniqueSeeds = new HashSet<>(playerSeeds.values());
+        if (uniqueSeeds.size() != playerSeeds.values().size()) {
+            throw new IllegalArgumentException("Duplicate seed numbers found");
+        }
+
+        // Set the seeds
+        event.setPlayerSeeds(playerSeeds);
+        eventRepo.save(event);
+    }
+
+    /**
+     * Automatically set seeds from league rankings
+     * @param tournamentId Tournament ID
+     * @param eventIndex Event index
+     * @param numberOfSeeds Number of top players to seed
+     */
+    public void setAutoSeeds(Long tournamentId, int eventIndex, int numberOfSeeds) {
+        BaseEvent event = getEventsForTournament(tournamentId).get(eventIndex);
+        Tournament tournament = getTournament(tournamentId);
+
+        // Validate: cannot set seeds after initialization
+        if (event.isEventInitialized()) {
+            throw new IllegalStateException("Cannot set seeds after event has been initialized");
+        }
+
+        // Validate: number of seeds cannot exceed number of players
+        if (numberOfSeeds > event.getPlayers().size()) {
+            throw new IllegalArgumentException("Number of seeds (" + numberOfSeeds +
+                ") cannot exceed number of players (" + event.getPlayers().size() + ")");
+        }
+
+        // Validate: numberOfSeeds must be positive
+        if (numberOfSeeds <= 0) {
+            throw new IllegalArgumentException("Number of seeds must be positive");
+        }
+
+        // Find leagues this tournament belongs to
+        List<League> leagues = leagueRepo.findByTournamentsContaining(tournament);
+
+        if (leagues.isEmpty()) {
+            throw new IllegalArgumentException("Tournament is not part of any league. Cannot auto-seed from rankings.");
+        }
+
+        // Use the first league (in practice, a tournament might be in multiple leagues)
+        League league = leagues.get(0);
+
+        // Get all rankings for this league, sorted by rank
+        List<LeaguePlayerRanking> rankings = league.getPlayerRankings();
+
+        // Create a map of user ID to their league rank
+        Map<Long, Integer> userRankMap = new HashMap<>();
+        for (LeaguePlayerRanking ranking : rankings) {
+            userRankMap.put(ranking.getPlayer().getId(), ranking.getRank());
+        }
+
+        // Filter event players who have rankings, and sort by their rank
+        List<User> rankedPlayers = event.getPlayers().stream()
+            .filter(player -> userRankMap.containsKey(player.getId()))
+            .sorted((p1, p2) -> {
+                int rank1 = userRankMap.get(p1.getId());
+                int rank2 = userRankMap.get(p2.getId());
+                return Integer.compare(rank1, rank2);
+            })
+            .toList();
+
+        if (rankedPlayers.isEmpty()) {
+            throw new IllegalArgumentException("No players in this event have rankings in the league");
+        }
+
+        // Take the top N ranked players and assign seeds
+        Map<Long, Integer> playerSeeds = new HashMap<>();
+        int seedsToAssign = Math.min(numberOfSeeds, rankedPlayers.size());
+
+        for (int i = 0; i < seedsToAssign; i++) {
+            User player = rankedPlayers.get(i);
+            playerSeeds.put(player.getId(), i + 1); // Seed 1, 2, 3, ...
+        }
+
+        // Set the seeds
+        event.setPlayerSeeds(playerSeeds);
+        eventRepo.save(event);
     }
 }
