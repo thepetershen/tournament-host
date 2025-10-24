@@ -30,11 +30,6 @@ function HomePageContent() {
                 <Link to={`/tournament/${t.id}`} className={styles.tournamentName}>
                 {t.name}
                 </Link>
-                <div className={styles.tournamentDetails}>
-                <span><strong>Location:</strong> {t.location}</span>
-                <span><strong>Host:</strong> {t.host}</span>
-                <span><strong>Date:</strong> {t.date}</span>
-                </div>
             </div>
             ))
         )}

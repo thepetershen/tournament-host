@@ -1,0 +1,332 @@
+/* Main container for the Round Robin bracket */
+.roundRobinContainer {
+    padding: 30px;
+    background-color: #eeeded;
+    overflow-x: auto;
+    overflow-y: auto;
+    min-height: 400px;
+}
+
+/* Grid-based table layout for Round Robin */
+.bracketGrid {
+    display: grid;
+    gap: 0;
+    width: fit-content;
+    background-color: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+}
+
+/* Header cells (player names in top row and left column) */
+.headerCell {
+    background-color: #f5f5f5;
+    border: 1.5px solid #b0b0b0;
+    padding: 12px 20px;
+    font-family: "Open-Sans", 'Segoe UI', 'Roboto', Arial, sans-serif;
+    font-size: 1rem;
+    font-weight: 600;
+    color: #333;
+    text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 180px;
+    min-height: 60px;
+    box-sizing: border-box;
+}
+
+/* Top-left corner cell (empty or "Players" label) */
+.cornerCell {
+    background-color: #e0e0e0;
+    border: 1.5px solid #b0b0b0;
+    min-width: 180px;
+    min-height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: "Open-Sans", 'Segoe UI', 'Roboto', Arial, sans-serif;
+    font-size: 1rem;
+    font-weight: 700;
+    color: #666;
+}
+
+/* Match cell - contains the score/result for a match */
+.matchCell {
+    border: 1.5px solid #b0b0b0;
+    background-color: white;
+    padding: 8px 16px;
+    min-width: 180px;
+    min-height: 60px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    font-family: "Open-Sans", 'Segoe UI', 'Roboto', Arial, sans-serif;
+    box-sizing: border-box;
+    transition: background-color 0.2s ease;
+}
+
+.matchCell:hover {
+    background-color: #f9f9f9;
+    cursor: pointer;
+}
+
+/* Win cell - green background */
+.winCell {
+    background-color: #d4edda !important;
+    border-color: #28a745 !important;
+}
+
+.winCell:hover {
+    background-color: #c3e6cb !important;
+}
+
+/* Loss cell - red/pink background */
+.lossCell {
+    background-color: #f8d7da !important;
+    border-color: #dc3545 !important;
+}
+
+.lossCell:hover {
+    background-color: #f1b0b7 !important;
+}
+
+/* Diagonal cells (player vs themselves - should be disabled/grayed out) */
+.disabledCell {
+    background-color: #e8e8e8;
+    border: 1.5px solid #b0b0b0;
+    min-width: 180px;
+    min-height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    position: relative;
+}
+
+.disabledCell::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(
+        to bottom right,
+        transparent calc(50% - 1px),
+        #b0b0b0 calc(50% - 1px),
+        #b0b0b0 calc(50% + 1px),
+        transparent calc(50% + 1px)
+    );
+}
+
+/* Score display within match cell */
+.scoreDisplay {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    font-size: 1.2rem;
+    font-weight: 600;
+    color: #333;
+    min-width: 100px;
+}
+
+.scoreNumber {
+    min-width: 30px;
+    text-align: center;
+}
+
+.scoreSeparator {
+    color: #666;
+    font-weight: 400;
+}
+
+/* Winner indicator */
+.winner {
+    background-color: #e8f5e9;
+    font-weight: 700;
+}
+
+/* Loser styling */
+.loser {
+    color: #999;
+}
+
+/* Pending/unplayed match */
+.pendingMatch {
+    color: #999;
+    font-size: 0.9rem;
+    font-style: italic;
+}
+
+/* Match status badge */
+.matchStatus {
+    font-size: 0.75rem;
+    padding: 2px 8px;
+    border-radius: 4px;
+    margin-top: 4px;
+    font-weight: 500;
+}
+
+.statusPending {
+    background-color: #fff3cd;
+    color: #856404;
+}
+
+.statusComplete {
+    background-color: #d4edda;
+    color: #155724;
+}
+
+.statusInProgress {
+    background-color: #cce5ff;
+    color: #004085;
+}
+
+/* Input fields for score entry */
+.scoreInput {
+    width: 40px;
+    height: 32px;
+    text-align: center;
+    font-size: 1rem;
+    font-weight: 600;
+    border: 1px solid #b0b0b0;
+    border-radius: 4px;
+    padding: 4px;
+    font-family: "Open-Sans", 'Segoe UI', 'Roboto', Arial, sans-serif;
+    box-sizing: border-box;
+}
+
+.scoreInput:focus {
+    outline: none;
+    border-color: #4a90e2;
+    box-shadow: 0 0 0 2px rgba(74, 144, 226, 0.2);
+}
+
+.scoreInputContainer {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
+}
+
+/* Submit button for score entry */
+.submitScoreBtn {
+    margin-top: 6px;
+    padding: 4px 12px;
+    background-color: #4a90e2;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+    font-family: "Open-Sans", 'Segoe UI', 'Roboto', Arial, sans-serif;
+}
+
+.submitScoreBtn:hover {
+    background-color: #357abd;
+}
+
+.submitScoreBtn:active {
+    background-color: #2d6ba3;
+}
+
+/* Standings table (optional - for showing win/loss records) */
+.standingsContainer {
+    margin-top: 30px;
+    background-color: white;
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.standingsTitle {
+    font-family: "Open-Sans", 'Segoe UI', 'Roboto', Arial, sans-serif;
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #333;
+    margin-bottom: 16px;
+}
+
+.standingsTable {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.standingsTable th {
+    background-color: #f5f5f5;
+    padding: 12px 16px;
+    text-align: left;
+    font-weight: 600;
+    border-bottom: 2px solid #b0b0b0;
+    font-family: "Open-Sans", 'Segoe UI', 'Roboto', Arial, sans-serif;
+}
+
+.standingsTable td {
+    padding: 12px 16px;
+    border-bottom: 1px solid #e0e0e0;
+    font-family: "Open-Sans", 'Segoe UI', 'Roboto', Arial, sans-serif;
+}
+
+.standingsTable tr:last-child td {
+    border-bottom: none;
+}
+
+.standingsTable tr:hover {
+    background-color: #f9f9f9;
+}
+
+/* Rank indicator in standings */
+.rankBadge {
+    display: inline-block;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background-color: #4a90e2;
+    color: white;
+    text-align: center;
+    line-height: 30px;
+    font-weight: 700;
+}
+
+.rankBadge.first {
+    background-color: #ffd700;
+    color: #333;
+}
+
+.rankBadge.second {
+    background-color: #c0c0c0;
+    color: #333;
+}
+
+.rankBadge.third {
+    background-color: #cd7f32;
+    color: white;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .roundRobinContainer {
+        padding: 15px;
+    }
+
+    .headerCell,
+    .cornerCell,
+    .matchCell,
+    .disabledCell {
+        min-width: 120px;
+        min-height: 50px;
+        padding: 8px 12px;
+        font-size: 0.9rem;
+    }
+
+    .scoreDisplay {
+        font-size: 1rem;
+        gap: 8px;
+    }
+}

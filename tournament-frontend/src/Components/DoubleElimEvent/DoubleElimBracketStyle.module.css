@@ -1,0 +1,113 @@
+/* Main container for the entire double elimination bracket */
+.doubleElimContainer {
+    display: flex;
+    flex-direction: column;
+    gap: 40px;
+    padding: 20px;
+    background-color: #eeeded;
+    min-height: 100vh;
+}
+
+/* Individual bracket section (Winners or Losers) */
+.bracketSection {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+/* Label for each bracket */
+.bracketLabel {
+    padding: 10px 20px;
+    background-color: #ffffff;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    width: fit-content;
+}
+
+.bracketLabel h3 {
+    margin: 0;
+    font-family: "Open-Sans", 'Segoe UI', 'Roboto', Arial, sans-serif;
+    font-size: 1.3rem;
+    font-weight: 700;
+    color: #333;
+}
+
+/* Bracket display area (reusing single elim styles) */
+.main {
+    display: flex;
+    flex-direction: row;
+    padding: 30px;
+    background-color: #ffffff;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.07);
+    overflow-x: auto;      /* Enable horizontal scrolling if needed */
+    overflow-y: auto;      /* Enable vertical scrolling if needed */
+}
+
+.round {
+    flex-direction: column;
+    justify-content: space-between;
+    width: fit-content;    /* Only as wide as its content */
+    height: 100%;
+}
+
+.gameSpacer {
+    width: 100%;
+    background: transparent; /* or remove this line, as blank is default */
+    display: block;
+    padding: 0;
+    margin: 0;
+    border: none;
+}
+
+.roundContainer {
+    display: flex;
+    flex-direction: row;
+    width: fit-content;
+    box-sizing: border-box;
+    padding: 0;
+    margin: 0;
+}
+
+.connectingLinesBlock {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    width: 1px;
+}
+
+.connectingLines {
+    width: 100%;
+    background-color: transparent; /* Default: no color */
+}
+
+.connectingLines:nth-child(2n) {
+    background-color: #b0b0b0; /* Only even lines have color */
+}
+
+/* Responsive adjustments */
+@media (max-width: 1200px) {
+    .doubleElimContainer {
+        padding: 15px;
+        gap: 30px;
+    }
+
+    .main {
+        padding: 20px;
+    }
+}
+
+@media (max-width: 768px) {
+    .doubleElimContainer {
+        padding: 10px;
+        gap: 20px;
+    }
+
+    .main {
+        padding: 15px;
+    }
+
+    .bracketLabel h3 {
+        font-size: 1.1rem;
+    }
+}

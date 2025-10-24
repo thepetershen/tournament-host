@@ -36,6 +36,8 @@ public class Tournament {
     @OneToMany(mappedBy = "tournament", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<BaseEvent> events;
 
+    private String message;
+
     // Getters and setters
     public Long getId() {
         return id;

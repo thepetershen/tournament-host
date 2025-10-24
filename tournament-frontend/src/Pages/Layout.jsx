@@ -9,9 +9,7 @@ function Layout() {
             <Navbar />
             <div style={{ marginLeft: "400px", width: "100%" }}>
                 <TopBar />
-                <div style={{ marginTop: "60px" }}>
-                  <Outlet />
-                </div>
+                <Outlet />
             </div>
         </div>
     );

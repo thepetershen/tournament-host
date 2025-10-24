@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
-import { useParams,Link } from "react-router-dom";
+import { useParams, Link } from "react-router-dom";
 import authAxios from "../../utils/authAxios";
+import styles from "./TournamentIndividualPage.module.css";
 
 function TournamentIndividualPage() {
   const { tournamentId } = useParams();
@@ -34,72 +35,127 @@ function TournamentIndividualPage() {
   }, [tournamentId]);
 
   return (
-    <div style={{ maxWidth: 800, margin: "40px auto", padding: "24px" }}>
-      <h1>{tournament ? tournament.name : "Loading..."}</h1>
-      <div style={{ marginBottom: "24px", display: "flex", gap: "16px" }}>
-        <button onClick={() => setActiveTab("general")} disabled={activeTab === "general"}>General</button>
-        <button onClick={() => setActiveTab("events")} disabled={activeTab === "events"}>Events</button>
-        <button onClick={() => setActiveTab("matches")} disabled={activeTab === "matches"}>Matches</button>
-        <button onClick={() => setActiveTab("players")} disabled={activeTab === "players"}>Players</button>
+    <div className={styles.pageContainer}>
+      {/* Tournament Header Section with colored background */}
+      <div className={styles.tournamentHeader}>
+        <h1 className={styles.tournamentTitle}>
+          {tournament ? tournament.name : "Loading..."}
+        </h1>
+        {tournament && (
+          <div className={styles.tournamentMeta}>
+            {tournament.owner && (
+              <div className={styles.metaItem}>
+                <span className={styles.metaLabel}>Owner:</span>
+                <span>{tournament.owner.username || tournament.owner.name}</span>
+              </div>
+            )}
+            <div className={styles.metaItem}>
+              <span className={styles.metaLabel}>Events:</span>
+              <span>{events.length}</span>
+            </div>
+            <div className={styles.metaItem}>
+              <span className={styles.metaLabel}>Players:</span>
+              <span>{players.length}</span>
+            </div>
+          </div>
+        )}
       </div>
 
-      {activeTab === "general" && tournament && (
-        <div>
-          <p><strong>Location:</strong> {tournament.location || "N/A"}</p>
-          <p><strong>Host:</strong> {tournament.host || "N/A"}</p>
-          <p><strong>Date:</strong> {tournament.date || "N/A"}</p>
-        </div>
-      )}
+      {/* Tab Navigation */}
+      <div className={styles.tabNavigation}>
+        <button
+          className={`${styles.tabButton} ${activeTab === "general" ? styles.active : ""}`}
+          onClick={() => setActiveTab("general")}
+        >
+          General Information
+        </button>
+        <button
+          className={`${styles.tabButton} ${activeTab === "events" ? styles.active : ""}`}
+          onClick={() => setActiveTab("events")}
+        >
+          Events
+        </button>
+        <button
+          className={`${styles.tabButton} ${activeTab === "players" ? styles.active : ""}`}
+          onClick={() => setActiveTab("players")}
+        >
+          Players
+        </button>
+      </div>
 
-      {activeTab === "events" && (
-        <div>
-          <h2>Events</h2>
-          {events.length === 0 ? (
-            <p>No events found.</p>
-          ) : (
-            <ul>
-              {events.map(event => (
-                <div>
-                    <Link to={`/tournament/${tournamentId}/event/${event.id}/draw`}>{event.name}</Link>
-                    <br/>
+      {/* Content Area */}
+      <div className={styles.contentArea}>
+        {activeTab === "general" && tournament && (
+          <div className={styles.generalInfo}>
+            <h2 className={styles.sectionTitle}>Tournament Information</h2>
+            <div className={styles.infoGrid}>
+              <div className={styles.infoItem}>
+                <div className={styles.infoLabel}>Tournament Name</div>
+                <div className={styles.infoValue}>{tournament.name}</div>
+              </div>
+              {tournament.owner && (
+                <div className={styles.infoItem}>
+                  <div className={styles.infoLabel}>Owner</div>
+                  <div className={styles.infoValue}>
+                    {tournament.owner.username || tournament.owner.name}
+                  </div>
                 </div>
-              ))}
-            </ul>
-          )}
-        </div>
-      )}
+              )}
+              <div className={styles.infoItem}>
+                <div className={styles.infoLabel}>Total Events</div>
+                <div className={styles.infoValue}>{events.length}</div>
+              </div>
+              <div className={styles.infoItem}>
+                <div className={styles.infoLabel}>Total Players</div>
+                <div className={styles.infoValue}>{players.length}</div>
+              </div>
+              <div className={styles.infoItem}>
+                <div className={styles.infoLabel}>Total Matches</div>
+                <div className={styles.infoValue}>{matches.length}</div>
+              </div>
+            </div>
+          </div>
+        )}
 
-      {activeTab === "matches" && (
-        <div>
-          <h2>Matches</h2>
-          {matches.length === 0 ? (
-            <p>No matches found.</p>
-          ) : (
-            <ul>
-              {matches.map(match => (
-                <li key={match.id}>
-                  {match.playerA?.username || "?"} vs {match.playerB?.username || "?"}
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      )}
+        {activeTab === "events" && (
+          <div>
+            <h2 className={styles.sectionTitle}>Events</h2>
+            {events.length === 0 ? (
+              <div className={styles.emptyState}>No events found.</div>
+            ) : (
+              <ul className={styles.eventsList}>
+                {events.map(event => (
+                  <li key={event.id} className={styles.eventCard}>
+                    <Link
+                      to={`/tournament/${tournamentId}/event/${event.id}/draw`}
+                      className={styles.eventLink}
+                    >
+                      {event.name}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
 
-      {activeTab === "players" && (
-        <div>
-          <h2>Players</h2>
-          {players.length === 0 ? (
-            <p>No players found.</p>
-          ) : (
-            <ul>
-              {players.map(player => (
-                <li key={player.id}>{player.username}</li>
-              ))}
-            </ul>
-          )}
-        </div>
-      )}
+        {activeTab === "players" && (
+          <div className={styles.playersList}>
+            <h2 className={styles.sectionTitle}>Players</h2>
+            {players.length === 0 ? (
+              <div className={styles.emptyState}>No players found.</div>
+            ) : (
+              <ul className={styles.playersGrid}>
+                {players.map(player => (
+                  <li key={player.id} className={styles.playerItem}>
+                    {player.username}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
