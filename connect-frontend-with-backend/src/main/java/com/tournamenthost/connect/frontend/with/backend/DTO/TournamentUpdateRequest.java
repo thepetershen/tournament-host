@@ -2,29 +2,19 @@ package com.tournamenthost.connect.frontend.with.backend.DTO;
 
 import java.util.Date;
 
-public class TournamentRequest {
-    private String name;
+public class TournamentUpdateRequest {
     private String message;
     private Date begin;
     private Date end;
     private String location;
 
-    public TournamentRequest() {}
+    public TournamentUpdateRequest() {}
 
-    public TournamentRequest(String name, String message, Date begin, Date end, String location) {
-        this.name = name;
+    public TournamentUpdateRequest(String message, Date begin, Date end, String location) {
         this.message = message;
         this.begin = begin;
         this.end = end;
         this.location = location;
-    }
-
-    public String getName() {
-        return name;
-    }
-
-    public void setName(String name) {
-        this.name = name;
     }
 
     public String getMessage() {

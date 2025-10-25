@@ -7,7 +7,7 @@ import org.springframework.data.repository.CrudRepository;
 import org.springframework.data.repository.query.Param;
 
 import com.tournamenthost.connect.frontend.with.backend.Model.Tournament;
-import com.tournamenthost.connect.frontend.with.backend.Model.Event.BaseEvent;
+import com.tournamenthost.connect.frontend.with.backend.Model.User;
 
 public interface TournamentRepository extends CrudRepository<Tournament, Long>{
     default boolean existsByNameIgnoreCaseAndSpaces(String name) {
@@ -22,4 +22,7 @@ public interface TournamentRepository extends CrudRepository<Tournament, Long>{
 
     @Query("SELECT t FROM Tournament t WHERE LOWER(REPLACE(t.name, ' ', '')) LIKE LOWER(CONCAT('%', REPLACE(:name, ' ', ''), '%'))")
     List<Tournament> findByNameContainingIgnoreCaseAndSpaces(@Param("name") String name);
+
+    @Query("SELECT DISTINCT t FROM Tournament t JOIN t.events e JOIN e.players p WHERE p = :player")
+    List<Tournament> findAllTournamentsWithPlayer(@Param("player") User player);
 }

@@ -3,6 +3,7 @@ package com.tournamenthost.connect.frontend.with.backend.Model;
 import jakarta.persistence.*;
 
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -10,7 +11,7 @@ import java.util.Set;
 import com.tournamenthost.connect.frontend.with.backend.Model.Event.BaseEvent;
 
 @Entity
-public class Tournament {
+public class Tournament implements Comparable<Tournament> {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -37,6 +38,14 @@ public class Tournament {
     private List<BaseEvent> events;
 
     private String message;
+
+    @Column(name = "\"begin\"")
+    private Date begin;
+
+    @Column(name = "\"end\"")
+    private Date end;
+
+    private String location;
 
     // Getters and setters
     public Long getId() {
@@ -85,6 +94,39 @@ public class Tournament {
         return user.equals(owner) || authorizedEditors.contains(user);
     }
 
+    public String getMessage() {
+        return message;
+    }
+
+    public void setMessage(String message) {
+        this.message = message;
+    }
+
+    public Date getBegin() {
+        return begin;
+    }
+
+    public void setBegin(Date begin) {
+        this.begin = begin;
+    }
+
+    public Date getEnd() {
+        return end;
+    }
+
+    public void setEnd(Date end) {
+        this.end = end;
+    }
+
+    public String getLocation() {
+        return location;
+    }
+
+    public void setLocation(String location) {
+        this.location = location;
+    }
+
+
     // Constructors
     public Tournament() {
         this.events = new ArrayList<>();
@@ -102,5 +144,14 @@ public class Tournament {
         this.owner = owner;
         this.events = new ArrayList<>();
         this.authorizedEditors = new HashSet<>();
+    }
+
+    @Override
+    public int compareTo(Tournament other) {
+        // Sort by begin date in descending order (most recent first)
+        if (this.begin == null && other.begin == null) return 0;
+        if (this.begin == null) return 1;
+        if (other.begin == null) return -1;
+        return other.begin.compareTo(this.begin);
     }
 }

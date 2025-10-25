@@ -7,6 +7,7 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Set;
 import java.util.TreeMap;
@@ -61,11 +62,36 @@ public class TournamentService {
     @Autowired
     private EventRegistrationRepository eventRegistrationRepo;
 
-    public Tournament createTournament(String name, User owner) {
+    public Tournament createTournament(String name, User owner, String message, Date begin, Date end, String location) {
         if (tournamentRepo.existsByNameIgnoreCaseAndSpaces(name)) {
             throw new IllegalArgumentException("Tournament with name '" + name + "' already exists");
         }
+
+        // Validate that message, begin, end, and location are provided
+        if (message == null || message.trim().isEmpty()) {
+            throw new IllegalArgumentException("Tournament message is required");
+        }
+        if (begin == null) {
+            throw new IllegalArgumentException("Tournament begin date is required");
+        }
+        if (end == null) {
+            throw new IllegalArgumentException("Tournament end date is required");
+        }
+        if (location == null || location.trim().isEmpty()) {
+            throw new IllegalArgumentException("Tournament location is required");
+        }
+
+        // Validate that begin date is before end date
+        if (begin.after(end)) {
+            throw new IllegalArgumentException("Begin date must be before end date");
+        }
+
         Tournament tournament = new Tournament(name, owner);
+        tournament.setMessage(message);
+        tournament.setBegin(begin);
+        tournament.setEnd(end);
+        tournament.setLocation(location);
+
         return tournamentRepo.save(tournament);
     }
 
@@ -103,6 +129,84 @@ public class TournamentService {
             answer.addAll(getMatchesForEvent(tournamentId, cur.getIndex()));
         }
         return answer;
+    }
+
+    public Map<BaseEvent, List<Match>> getPlayerMatchesForTournament(Long tournamentId, Long playerId) {
+        Tournament tournament = tournamentRepo.findById(tournamentId)
+            .orElseThrow(() -> new IllegalArgumentException("Tournament with id " + tournamentId + " not found"));
+        User player = userRepo.findById(playerId)
+            .orElseThrow(() -> new IllegalArgumentException("User with id " + playerId + " not found"));
+
+        Map<BaseEvent, List<Match>> answer = new LinkedHashMap<>();
+
+        for (BaseEvent event : tournament.getEvents()) {
+            List<Match> playerMatches = getPlayerMatchesForEvent(event, player);
+            if (!playerMatches.isEmpty()) {
+                answer.put(event, playerMatches);
+            }
+        }
+
+        return answer;
+    }
+
+    /**
+     * Get all matches for a specific player in an event, ordered chronologically
+     * For Single/Double Elim: earlier rounds come first (Round of 32 before Round of 16)
+     * For Round Robin: matches are returned in their natural order
+     */
+    private List<Match> getPlayerMatchesForEvent(BaseEvent event, User player) {
+        if (!event.isEventInitialized()) {
+            return new ArrayList<>();
+        }
+
+        List<Match> playerMatches = new ArrayList<>();
+
+        if (event instanceof SingleElimEvent singleElim) {
+            // Iterate through rounds in order (earliest round first)
+            List<Round> rounds = singleElim.getRounds();
+            for (Round round : rounds) {
+                for (Match match : round.getMatches()) {
+                    if (isPlayerInMatch(match, player)) {
+                        playerMatches.add(match);
+                    }
+                }
+            }
+        } else if (event instanceof RoundRobinEvent roundRobin) {
+            // Get all matches for the player
+            for (PlayerSchedule schedule : roundRobin.getPlayerSchedules()) {
+                if (schedule.getPlayer().equals(player)) {
+                    playerMatches.addAll(schedule.getMatches());
+                    break;
+                }
+            }
+        } else if (event instanceof DoubleElimEvent doubleElim) {
+            // Add matches from winners bracket first (earliest round first)
+            for (DoubleElimRound round : doubleElim.getWinnersBracket()) {
+                for (Match match : round.getMatches()) {
+                    if (isPlayerInMatch(match, player)) {
+                        playerMatches.add(match);
+                    }
+                }
+            }
+            // Then add matches from losers bracket (earliest round first)
+            for (DoubleElimRound round : doubleElim.getLosersBracket()) {
+                for (Match match : round.getMatches()) {
+                    if (isPlayerInMatch(match, player)) {
+                        playerMatches.add(match);
+                    }
+                }
+            }
+        }
+
+        return playerMatches;
+    }
+
+    /**
+     * Check if a player is a participant in a match
+     */
+    private boolean isPlayerInMatch(Match match, User player) {
+        return (match.getPlayerA() != null && match.getPlayerA().equals(player)) ||
+               (match.getPlayerB() != null && match.getPlayerB().equals(player));
     }
     // Event-related methods merged from EventService
     public BaseEvent addEvent(String name, EventType eventType, Long tournamentId) {
@@ -1375,5 +1479,67 @@ public class TournamentService {
         }
 
         eventRegistrationRepo.delete(registration);
+    }
+
+    // ==================== TOURNAMENT METADATA METHODS ====================
+
+    /**
+     * Get tournament location
+     */
+    public String getTournamentLocation(Long tournamentId) {
+        Tournament tournament = getTournament(tournamentId);
+        return tournament.getLocation();
+    }
+
+    /**
+     * Set tournament location
+     */
+    public void setTournamentLocation(Long tournamentId, String location) {
+        Tournament tournament = getTournament(tournamentId);
+        tournament.setLocation(location);
+        tournamentRepo.save(tournament);
+    }
+
+    /**
+     * Update tournament's message, begin date, end date, and location
+     * Allows updating all fields at once with validation
+     */
+    public Tournament updateTournamentDetails(Long tournamentId, String message, Date begin, Date end, String location) {
+        Tournament tournament = getTournament(tournamentId);
+
+        // Validate begin and end dates if both are provided
+        if (begin != null && end != null && begin.after(end)) {
+            throw new IllegalArgumentException("Begin date must be before end date");
+        }
+
+        // Update message if provided
+        if (message != null) {
+            tournament.setMessage(message);
+        }
+
+        // Update begin date if provided
+        if (begin != null) {
+            // Validate against existing end date if not updating end
+            if (end == null && tournament.getEnd() != null && begin.after(tournament.getEnd())) {
+                throw new IllegalArgumentException("Begin date must be before end date");
+            }
+            tournament.setBegin(begin);
+        }
+
+        // Update end date if provided
+        if (end != null) {
+            // Validate against existing begin date if not updating begin
+            if (begin == null && tournament.getBegin() != null && end.before(tournament.getBegin())) {
+                throw new IllegalArgumentException("End date must be after begin date");
+            }
+            tournament.setEnd(end);
+        }
+
+        // Update location if provided
+        if (location != null) {
+            tournament.setLocation(location);
+        }
+
+        return tournamentRepo.save(tournament);
     }
 }

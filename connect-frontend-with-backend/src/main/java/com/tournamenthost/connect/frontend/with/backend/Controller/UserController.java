@@ -49,4 +49,10 @@ public class UserController {
 
         return ResponseEntity.ok(userDTO);
     }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<UserDTO> getUser(@PathVariable Long id) {
+        UserDTO userDTO = userService.getUserWithTournamentsAndMatches(id);
+        return ResponseEntity.ok(userDTO);
+    }
 }

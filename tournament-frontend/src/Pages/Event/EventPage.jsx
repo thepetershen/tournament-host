@@ -4,28 +4,35 @@ import SingleElimBracket from '../../Components/SingleElimEvent/SingleElimBracke
 import RoundRobinBracket from '../../Components/RoundRobinEvent/RoundRobinBracket';
 import DoubleElimBracket from '../../Components/DoubleElimEvent/DoubleElimBracket';
 import authAxios from '../../utils/authAxios';
+import styles from './EventPage.module.css';
 
 function EventPage() {
     const { tournamentId, eventIndex } = useParams();
     const [eventType, setEventType] = useState(null);
     const [draw, setDraw] = useState(null);
+    const [tournament, setTournament] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
 
     useEffect(() => {
-        const fetchDraw = async () => {
+        const fetchData = async () => {
             try {
-                const response = await authAxios.get(`/api/tournaments/${tournamentId}/event/${eventIndex}/draw`);
-                const { eventType, draw } = response.data;
+                // Fetch tournament general info
+                const tournamentResponse = await authAxios.get(`/api/tournaments/${tournamentId}`);
+                setTournament(tournamentResponse.data);
+
+                // Fetch event draw
+                const drawResponse = await authAxios.get(`/api/tournaments/${tournamentId}/event/${eventIndex}/draw`);
+                const { eventType, draw } = drawResponse.data;
                 setEventType(eventType);
                 setDraw(draw);
             } catch (err) {
-                setError('Failed to load event draw.');
+                setError('Failed to load event data.');
             } finally {
                 setLoading(false);
             }
         };
-        if (tournamentId && eventIndex !== undefined) fetchDraw();
+        if (tournamentId && eventIndex !== undefined) fetchData();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [tournamentId, eventIndex]);
 
@@ -46,8 +53,32 @@ function EventPage() {
     };
 
     return (
-        <div style={{ padding: "24px", width: "100%" }}>
-            {renderBracket()}
+        <div className={styles.pageContainer}>
+            {/* Tournament Header Section with colored background */}
+            <div className={styles.tournamentHeader}>
+                <h1 className={styles.tournamentTitle}>
+                    {tournament ? tournament.name : "Loading..."}
+                </h1>
+                {tournament && (
+                    <div className={styles.tournamentMeta}>
+                        {tournament.owner && (
+                            <div className={styles.metaItem}>
+                                <span className={styles.metaLabel}>Owner:</span>
+                                <span>{tournament.owner.username || tournament.owner.name}</span>
+                            </div>
+                        )}
+                        <div className={styles.metaItem}>
+                            <span className={styles.metaLabel}>Event:</span>
+                            <span>{eventIndex}</span>
+                        </div>
+                    </div>
+                )}
+            </div>
+
+            {/* Bracket Content Area */}
+            <div className={styles.bracketContainer}>
+                {renderBracket()}
+            </div>
         </div>
     );
 }

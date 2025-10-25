@@ -1,0 +1,396 @@
+/* Main page container */
+.pageContainer {
+    width: 100%;
+    min-height: 100vh;
+    background-color: #f5f5f5;
+    padding-bottom: 40px;
+}
+
+/* Loading and Error States */
+.loadingContainer,
+.errorContainer {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 60vh;
+    padding: 40px;
+}
+
+.spinner {
+    width: 50px;
+    height: 50px;
+    border: 4px solid #e0e0e0;
+    border-top-color: #667eea;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+.errorContainer h2 {
+    color: #e53e3e;
+    margin-bottom: 12px;
+}
+
+/* Player Header */
+.playerHeader {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 60px;
+    display: flex;
+    align-items: center;
+    gap: 30px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.playerAvatar {
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.2);
+    backdrop-filter: blur(10px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 3rem;
+    font-weight: 700;
+    border: 4px solid rgba(255, 255, 255, 0.3);
+}
+
+.playerInfo {
+    flex: 1;
+}
+
+.playerName {
+    font-size: 2.5rem;
+    font-weight: 700;
+    margin: 0 0 8px 0;
+}
+
+.playerUsername {
+    font-size: 1.2rem;
+    opacity: 0.9;
+    margin: 0;
+}
+
+/* Statistics Grid */
+.statsGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 20px;
+    padding: 40px 60px;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.statCard {
+    background: white;
+    padding: 24px;
+    border-radius: 12px;
+    text-align: center;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.statCard:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+}
+
+.statValue {
+    font-size: 2.5rem;
+    font-weight: 700;
+    color: #667eea;
+    margin-bottom: 8px;
+}
+
+.statLabel {
+    font-size: 0.95rem;
+    color: #666;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* Tab Navigation */
+.tabNavigation {
+    display: flex;
+    gap: 8px;
+    padding: 0 60px;
+    margin-bottom: 30px;
+    border-bottom: 2px solid #e0e0e0;
+}
+
+.tabButton {
+    padding: 12px 24px;
+    background: none;
+    border: none;
+    border-bottom: 3px solid transparent;
+    color: #666;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.tabButton:hover {
+    color: #667eea;
+    background: rgba(102, 126, 234, 0.05);
+}
+
+.tabButton.active {
+    color: #667eea;
+    border-bottom-color: #667eea;
+}
+
+/* Content Area */
+.contentArea {
+    padding: 0 60px;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.sectionTitle {
+    font-size: 1.8rem;
+    font-weight: 700;
+    margin-bottom: 24px;
+    color: #333;
+}
+
+.emptyState {
+    text-align: center;
+    color: #999;
+    padding: 60px 20px;
+    font-size: 1.1rem;
+}
+
+/* Overview Content */
+.overviewContent {
+    margin-bottom: 40px;
+}
+
+.recentTournaments {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 20px;
+}
+
+.tournamentCard {
+    background: white;
+    padding: 24px;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    text-decoration: none;
+    color: inherit;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.tournamentCard:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+}
+
+.tournamentCard h3 {
+    margin: 0 0 12px 0;
+    color: #667eea;
+    font-size: 1.3rem;
+}
+
+.tournamentDetails {
+    display: flex;
+    justify-content: space-between;
+    color: #666;
+    font-size: 0.9rem;
+}
+
+/* Tournaments Content */
+.tournamentsList {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.tournamentItem {
+    background: white;
+    padding: 24px;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.tournamentHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.tournamentName {
+    font-size: 1.4rem;
+    font-weight: 600;
+    color: #667eea;
+    text-decoration: none;
+    transition: color 0.2s;
+}
+
+.tournamentName:hover {
+    color: #764ba2;
+}
+
+.tournamentDate {
+    color: #666;
+    font-size: 0.9rem;
+}
+
+.tournamentMeta {
+    display: flex;
+    gap: 20px;
+    color: #999;
+    font-size: 0.9rem;
+    margin-bottom: 12px;
+}
+
+.tournamentMessage {
+    color: #666;
+    margin: 12px 0 0 0;
+    line-height: 1.5;
+}
+
+/* Matches Content */
+.matchesList {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.matchItem {
+    background: white;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+}
+
+.matchHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.matchTournament {
+    font-weight: 600;
+    color: #667eea;
+    text-decoration: none;
+    transition: color 0.2s;
+}
+
+.matchTournament:hover {
+    color: #764ba2;
+}
+
+.matchEvent {
+    color: #999;
+    font-size: 0.9rem;
+}
+
+.matchDetails {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 16px;
+}
+
+.matchPlayers {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 1.05rem;
+}
+
+.currentPlayer {
+    font-weight: 700;
+    color: #667eea;
+}
+
+.vs {
+    color: #999;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+}
+
+.matchResult {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.win {
+    background: #48bb78;
+    color: white;
+    padding: 4px 12px;
+    border-radius: 4px;
+    font-weight: 700;
+    font-size: 0.9rem;
+}
+
+.loss {
+    background: #e53e3e;
+    color: white;
+    padding: 4px 12px;
+    border-radius: 4px;
+    font-weight: 700;
+    font-size: 0.9rem;
+}
+
+.score {
+    color: #666;
+    font-weight: 600;
+}
+
+.pending {
+    color: #999;
+    font-style: italic;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .playerHeader {
+        padding: 40px 20px;
+        flex-direction: column;
+        text-align: center;
+    }
+
+    .playerName {
+        font-size: 2rem;
+    }
+
+    .statsGrid {
+        padding: 30px 20px;
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .tabNavigation {
+        padding: 0 20px;
+        overflow-x: auto;
+    }
+
+    .contentArea {
+        padding: 0 20px;
+    }
+
+    .recentTournaments {
+        grid-template-columns: 1fr;
+    }
+
+    .matchHeader,
+    .tournamentHeader {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+}

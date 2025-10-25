@@ -7,6 +7,7 @@ import com.tournamenthost.connect.frontend.with.backend.DTO.MatchDTO;
 import com.tournamenthost.connect.frontend.with.backend.DTO.MatchResultRequest;
 import com.tournamenthost.connect.frontend.with.backend.DTO.TournamentDTO;
 import com.tournamenthost.connect.frontend.with.backend.DTO.TournamentRequest;
+import com.tournamenthost.connect.frontend.with.backend.DTO.TournamentUpdateRequest;
 import com.tournamenthost.connect.frontend.with.backend.DTO.UserDTO;
 import com.tournamenthost.connect.frontend.with.backend.DTO.UserGetRequest;
 import com.tournamenthost.connect.frontend.with.backend.DTO.PointsDistributionRequest;
@@ -57,10 +58,21 @@ public class TournamentController {
     public ResponseEntity<?> createTournament(@RequestBody TournamentRequest tournamentRequest) {
         try {
             User currentUser = getCurrentUser();
-            Tournament tournament = tournamentService.createTournament(tournamentRequest.getName(), currentUser);
+            Tournament tournament = tournamentService.createTournament(
+                tournamentRequest.getName(),
+                currentUser,
+                tournamentRequest.getMessage(),
+                tournamentRequest.getBegin(),
+                tournamentRequest.getEnd(),
+                tournamentRequest.getLocation()
+            );
             TournamentDTO dto = new TournamentDTO();
             dto.setName(tournament.getName());
             dto.setId(tournament.getId());
+            dto.setMessage(tournament.getMessage());
+            dto.setBegin(tournament.getBegin());
+            dto.setEnd(tournament.getEnd());
+            dto.setLocation(tournament.getLocation());
 
             // Add owner information
             UserDTO ownerDTO = new UserDTO();
@@ -135,6 +147,10 @@ public class TournamentController {
             TournamentDTO dto = new TournamentDTO();
             dto.setId(tournament.getId());
             dto.setName(tournament.getName());
+            dto.setMessage(tournament.getMessage());
+            dto.setBegin(tournament.getBegin());
+            dto.setEnd(tournament.getEnd());
+            dto.setLocation(tournament.getLocation());
 
             // Include owner information
             if (tournament.getOwner() != null) {
@@ -159,6 +175,56 @@ public class TournamentController {
             return ResponseEntity.ok(dto);
         } catch (IllegalArgumentException e) {
             return ResponseEntity.notFound().build();
+        }
+    }
+
+    @PutMapping("/{id}/details")
+    public ResponseEntity<?> updateTournamentDetails(
+            @PathVariable Long id,
+            @RequestBody TournamentUpdateRequest request) {
+        try {
+            User currentUser = getCurrentUser();
+            tournamentService.verifyEditPermission(id, currentUser);
+
+            Tournament tournament = tournamentService.updateTournamentDetails(
+                id,
+                request.getMessage(),
+                request.getBegin(),
+                request.getEnd(),
+                request.getLocation()
+            );
+
+            TournamentDTO dto = new TournamentDTO();
+            dto.setId(tournament.getId());
+            dto.setName(tournament.getName());
+            dto.setMessage(tournament.getMessage());
+            dto.setBegin(tournament.getBegin());
+            dto.setEnd(tournament.getEnd());
+            dto.setLocation(tournament.getLocation());
+
+            // Include owner information
+            if (tournament.getOwner() != null) {
+                UserDTO ownerDTO = new UserDTO();
+                ownerDTO.setId(tournament.getOwner().getId());
+                ownerDTO.setUsername(tournament.getOwner().getUsername());
+                ownerDTO.setName(tournament.getOwner().getName());
+                dto.setOwner(ownerDTO);
+            }
+
+            // Include authorized editors
+            List<UserDTO> editorDTOs = new ArrayList<>();
+            for (User editor : tournament.getAuthorizedEditors()) {
+                UserDTO editorDTO = new UserDTO();
+                editorDTO.setId(editor.getId());
+                editorDTO.setUsername(editor.getUsername());
+                editorDTO.setName(editor.getName());
+                editorDTOs.add(editorDTO);
+            }
+            dto.setAuthorizedEditors(editorDTOs);
+
+            return ResponseEntity.ok(dto);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
         }
     }
 

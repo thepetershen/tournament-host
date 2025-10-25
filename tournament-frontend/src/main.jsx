@@ -6,6 +6,7 @@ import TournamentPage from './Pages/TournamentPage/TournamentMainPage';
 import TournamentIndividualPage from './Pages/TournamentPage/TournamentIndividualPage';
 import TournamentControl from "./Pages/TournamentControl/TournamentControl";
 import EventPage from "./Pages/Event/EventPage.jsx";
+import PlayerPage from "./Pages/Player/PlayerPage.jsx";
 import NotFoundPage from './Pages/NotFoundPage';
 import Layout from './Pages/Layout';
 import RegisterPage from './Pages/LoginAndRegistration/RegisterPage';
@@ -24,6 +25,7 @@ const router = createBrowserRouter([
       { path: "tournament/:tournamentId", element: <TournamentIndividualPage /> },
       { path: "tournamentControl", element: <TournamentControl/>},
       { path: "tournament/:tournamentId/event/:eventIndex/draw", element: <EventPage/>},
+      { path: "player/:playerId", element: <PlayerPage/>},
       { path: "register", element: <RegisterPage/> },
       { path: "login-success", element: <LoginSuccessPage/> },
       { path: "login", element: <LoginPage/> }
