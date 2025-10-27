@@ -13,6 +13,10 @@
     color: white;
     padding: 40px 60px;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 20px;
 }
 
 .tournamentTitle {
@@ -231,9 +235,72 @@
     font-size: 1.1rem;
 }
 
+/* Header Buttons Container */
+.headerButtons {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+}
+
+/* Control Panel Button */
+.controlButton {
+    padding: 10px 20px;
+    background-color: #ff9800;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 16px;
+    font-weight: bold;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 4px rgba(255, 152, 0, 0.3);
+    white-space: nowrap;
+}
+
+.controlButton:hover {
+    background-color: #f57c00;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(255, 152, 0, 0.4);
+}
+
+.controlButton:active {
+    transform: translateY(0);
+}
+
+/* Sign Up Button */
+.signUpButton {
+    padding: 10px 20px;
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 16px;
+    font-weight: bold;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 4px rgba(76, 175, 80, 0.3);
+    white-space: nowrap;
+}
+
+.signUpButton:hover {
+    background-color: #45a049;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(76, 175, 80, 0.4);
+}
+
+.signUpButton:active {
+    transform: translateY(0);
+}
+
 /* Responsive adjustments */
 @media (max-width: 768px) {
-    .tournamentHeader,
+    .tournamentHeader {
+        padding: 30px 20px;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 16px;
+    }
+
     .tabNavigation,
     .contentArea {
         padding-left: 20px;
@@ -257,5 +324,15 @@
     .eventsList,
     .playersGrid {
         grid-template-columns: 1fr;
+    }
+
+    .headerButtons {
+        width: 100%;
+        flex-direction: column;
+    }
+
+    .signUpButton,
+    .controlButton {
+        width: 100%;
     }
 }

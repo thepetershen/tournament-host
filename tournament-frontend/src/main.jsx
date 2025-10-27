@@ -4,6 +4,7 @@ import { createBrowserRouter, RouterProvider } from 'react-router-dom';
 import HomePageContent from './Pages/HomePage/HomePageContent';
 import TournamentPage from './Pages/TournamentPage/TournamentMainPage';
 import TournamentIndividualPage from './Pages/TournamentPage/TournamentIndividualPage';
+import SignUpPage from './Pages/TournamentPage/SignUpPage';
 import TournamentControl from "./Pages/TournamentControl/TournamentControl";
 import EventPage from "./Pages/Event/EventPage.jsx";
 import PlayerPage from "./Pages/Player/PlayerPage.jsx";
@@ -18,11 +19,12 @@ const router = createBrowserRouter([
   {
     path: "/",
     element: <Layout />, // Layout wraps all child routes
-    errorElement: <NotFoundPage />, 
+    errorElement: <NotFoundPage />,
     children: [
       { index: true, element: <HomePageContent /> },
       { path: "tournament", element: <TournamentPage /> },
       { path: "tournament/:tournamentId", element: <TournamentIndividualPage /> },
+      { path: "tournament/:tournamentId/signup", element: <SignUpPage /> },
       { path: "tournamentControl", element: <TournamentControl/>},
       { path: "tournament/:tournamentId/event/:eventIndex/draw", element: <EventPage/>},
       { path: "player/:playerId", element: <PlayerPage/>},

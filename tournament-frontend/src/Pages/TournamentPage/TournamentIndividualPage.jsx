@@ -1,17 +1,28 @@
-import React, { useEffect, useState } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import authAxios from "../../utils/authAxios";
 import styles from "./TournamentIndividualPage.module.css";
 
 function TournamentIndividualPage() {
   const { tournamentId } = useParams();
+  const navigate = useNavigate();
   const [tournament, setTournament] = useState(null);
   const [activeTab, setActiveTab] = useState("general");
   const [events, setEvents] = useState([]);
   const [matches, setMatches] = useState([]);
   const [players, setPlayers] = useState([]);
+  const [currentUser, setCurrentUser] = useState(null);
+  const [isAuthorized, setIsAuthorized] = useState(false);
 
   useEffect(() => {
+    // Fetch current user if authenticated
+    const token = localStorage.getItem('token');
+    if (token) {
+      authAxios.get('/api/users/me')
+        .then(res => setCurrentUser(res.data))
+        .catch(err => console.error(err));
+    }
+
     // Fetch tournament general info
     authAxios.get(`/api/tournaments/${tournamentId}`)
       .then(res => setTournament(res.data))
@@ -34,31 +45,80 @@ function TournamentIndividualPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tournamentId]);
 
+  // Check if current user is authorized (owner or editor)
+  useEffect(() => {
+    if (currentUser && tournament) {
+      const isOwner = tournament.owner && tournament.owner.id === currentUser.id;
+      const isEditor = tournament.authorizedEditors &&
+        tournament.authorizedEditors.some(editor => editor.id === currentUser.id);
+      setIsAuthorized(isOwner || isEditor);
+    } else {
+      setIsAuthorized(false);
+    }
+  }, [currentUser, tournament]);
+
+  const handleSignUpClick = () => {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      navigate('/login');
+      return;
+    }
+
+    // Verify token is valid by making a quick API call
+    authAxios.get('/api/users/me')
+      .then(() => {
+        navigate(`/tournament/${tournamentId}/signup`);
+      })
+      .catch(() => {
+        // Token is invalid or expired
+        localStorage.removeItem('token');
+        navigate('/login');
+      });
+  };
+
   return (
     <div className={styles.pageContainer}>
       {/* Tournament Header Section with colored background */}
       <div className={styles.tournamentHeader}>
-        <h1 className={styles.tournamentTitle}>
-          {tournament ? tournament.name : "Loading..."}
-        </h1>
-        {tournament && (
-          <div className={styles.tournamentMeta}>
-            {tournament.owner && (
+        <div>
+          <h1 className={styles.tournamentTitle}>
+            {tournament ? tournament.name : "Loading..."}
+          </h1>
+          {tournament && (
+            <div className={styles.tournamentMeta}>
+              {tournament.owner && (
+                <div className={styles.metaItem}>
+                  <span className={styles.metaLabel}>Owner:</span>
+                  <span>{tournament.owner.username || tournament.owner.name}</span>
+                </div>
+              )}
               <div className={styles.metaItem}>
-                <span className={styles.metaLabel}>Owner:</span>
-                <span>{tournament.owner.username || tournament.owner.name}</span>
+                <span className={styles.metaLabel}>Events:</span>
+                <span>{events.length}</span>
               </div>
-            )}
-            <div className={styles.metaItem}>
-              <span className={styles.metaLabel}>Events:</span>
-              <span>{events.length}</span>
+              <div className={styles.metaItem}>
+                <span className={styles.metaLabel}>Players:</span>
+                <span>{players.length}</span>
+              </div>
             </div>
-            <div className={styles.metaItem}>
-              <span className={styles.metaLabel}>Players:</span>
-              <span>{players.length}</span>
-            </div>
-          </div>
-        )}
+          )}
+        </div>
+        <div className={styles.headerButtons}>
+          {isAuthorized && (
+            <button
+              onClick={() => navigate('/tournamentControl')}
+              className={styles.controlButton}
+            >
+              Control Panel
+            </button>
+          )}
+          <button
+            onClick={handleSignUpClick}
+            className={styles.signUpButton}
+          >
+            Sign Up
+          </button>
+        </div>
       </div>
 
       {/* Tab Navigation */}
