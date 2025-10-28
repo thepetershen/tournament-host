@@ -31,6 +31,9 @@ public class TournamentUtil {
         // Create position array - index represents position in bracket (0 to bracketSize-1)
         User[] positions = new User[bracketSize];
 
+        // Get standard seeding positions for power-of-2 bracket
+        int[] seedPositions = generateStandardSeedPositions(bracketSize);
+
         // Separate seeded and unseeded players
         List<User> seededPlayers = new ArrayList<>();
         List<User> unseededPlayers = new ArrayList<>();
@@ -47,27 +50,46 @@ public class TournamentUtil {
             }
         }
 
-        // Standard seeding positions for power-of-2 bracket
-        // This follows the pattern: 1 vs lowest, 2 vs second-lowest in their half, etc.
-        int[] seedPositions = generateStandardSeedPositions(bracketSize);
-
-        // Place seeded players in their positions
-        for (int seed = 1; seed <= seededPlayers.size(); seed++) {
-            User player = seedToUser.get(seed);
-            if (player != null && seed - 1 < seedPositions.length) {
-                positions[seedPositions[seed - 1]] = player;
-            }
-        }
-
-        // Shuffle unseeded players
+        // Shuffle unseeded players for randomness
         Collections.shuffle(unseededPlayers);
 
-        // Fill remaining positions with unseeded players and nulls (for byes)
-        int unseededIndex = 0;
-        for (int i = 0; i < bracketSize; i++) {
-            if (positions[i] == null) {
+        // If no players are seeded, treat all players as if they were seeded 1-N
+        // and byes as seeds (N+1) to bracketSize
+        if (seededPlayers.isEmpty()) {
+            // Assign unseeded players to seed positions 1 through totalPlayers
+            for (int i = 0; i < unseededPlayers.size(); i++) {
+                int seed = i + 1;
+                int position = seedPositions[seed - 1];
+                positions[position] = unseededPlayers.get(i);
+            }
+
+            // Byes occupy the remaining seed positions (totalPlayers+1 to bracketSize)
+            // These are left as null
+        } else {
+            // Place seeded players first
+            for (int seed = 1; seed <= seededPlayers.size(); seed++) {
+                User player = seedToUser.get(seed);
+                if (player != null && seed - 1 < seedPositions.length) {
+                    positions[seedPositions[seed - 1]] = player;
+                }
+            }
+
+            // Fill remaining positions with unseeded players, then byes
+            int unseededIndex = 0;
+
+            // First, find all empty positions and sort them by seed priority
+            List<Integer> emptyPositions = new ArrayList<>();
+            for (int seed = 1; seed <= bracketSize; seed++) {
+                int position = seedPositions[seed - 1];
+                if (positions[position] == null) {
+                    emptyPositions.add(position);
+                }
+            }
+
+            // Fill empty positions with unseeded players first, then leave rest as byes
+            for (int position : emptyPositions) {
                 if (unseededIndex < unseededPlayers.size()) {
-                    positions[i] = unseededPlayers.get(unseededIndex++);
+                    positions[position] = unseededPlayers.get(unseededIndex++);
                 }
                 // else leave as null (bye)
             }

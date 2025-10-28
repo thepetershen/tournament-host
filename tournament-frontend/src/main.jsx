@@ -25,7 +25,7 @@ const router = createBrowserRouter([
       { path: "tournament", element: <TournamentPage /> },
       { path: "tournament/:tournamentId", element: <TournamentIndividualPage /> },
       { path: "tournament/:tournamentId/signup", element: <SignUpPage /> },
-      { path: "tournamentControl", element: <TournamentControl/>},
+      { path: "tournament/:tournamentId/control", element: <TournamentControl/>},
       { path: "tournament/:tournamentId/event/:eventIndex/draw", element: <EventPage/>},
       { path: "player/:playerId", element: <PlayerPage/>},
       { path: "register", element: <RegisterPage/> },

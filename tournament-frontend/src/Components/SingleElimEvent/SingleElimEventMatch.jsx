@@ -3,7 +3,7 @@ import {useContext} from "react";
 import {SpacingContext} from './SingleElimBracket.jsx';
 
 
-function SingleElimEventMatch({ playerTop = "BYE", playerBottom = "BYE", winner, arrOfScore = [], nextMatch, prevMatch, highlightLoser = false}) {
+function SingleElimEventMatch({ playerTop = "BYE", playerBottom = "BYE", winner, arrOfScore = [], nextMatch, prevMatch, matchId, isCompleted}) {
 
 
     const MATCH_SPACING = useContext(SpacingContext);
@@ -14,7 +14,17 @@ function SingleElimEventMatch({ playerTop = "BYE", playerBottom = "BYE", winner,
     const isTopLoser = winner && winner !== playerTop && playerTop !== "BYE";
     const isBottomLoser = winner && winner !== playerBottom && playerBottom !== "BYE";
 
-    const scoreListTop = arrOfScore.map((score, index) =>
+    // Convert flat array [6, 4, 7, 5] to pairs [[6, 4], [7, 5]]
+    const scorePairs = [];
+    if (arrOfScore && arrOfScore.length > 0) {
+        for (let i = 0; i < arrOfScore.length; i += 2) {
+            if (i + 1 < arrOfScore.length) {
+                scorePairs.push([arrOfScore[i], arrOfScore[i + 1]]);
+            }
+        }
+    }
+
+    const scoreListTop = scorePairs.map((score, index) =>
         <div className = {styles.scoreTop}
             key = {playerTop+playerBottom+index}
             style={{
@@ -26,7 +36,7 @@ function SingleElimEventMatch({ playerTop = "BYE", playerBottom = "BYE", winner,
 
     )
 
-    const scoreListBottom = arrOfScore.map((score, index) =>
+    const scoreListBottom = scorePairs.map((score, index) =>
         <div className = {styles.scoreBottom}
             key = {playerBottom+playerTop+index}
             style={{
@@ -50,7 +60,9 @@ function SingleElimEventMatch({ playerTop = "BYE", playerBottom = "BYE", winner,
                     className={styles.matchTop}
                     style={{
                         fontWeight: isTopWinner ? "bold" : "normal",
-                        color: highlightLoser && isTopLoser ? "#dc3545" : (isTopLoser ? "#999" : "#333")
+                        color: isTopWinner ? "#28a745" : (isTopLoser ? "#dc3545" : "#333"),
+                        backgroundColor: isTopWinner ? "rgba(40, 167, 69, 0.1)" : (isTopLoser ? "rgba(220, 53, 69, 0.05)" : "transparent"),
+                        transition: "all 0.3s ease"
                     }}
                 >
                     {playerTop}
@@ -59,7 +71,9 @@ function SingleElimEventMatch({ playerTop = "BYE", playerBottom = "BYE", winner,
                     className={styles.matchBottom}
                     style={{
                         fontWeight: isBottomWinner ? "bold" : "normal",
-                        color: highlightLoser && isBottomLoser ? "#dc3545" : (isBottomLoser ? "#999" : "#333")
+                        color: isBottomWinner ? "#28a745" : (isBottomLoser ? "#dc3545" : "#333"),
+                        backgroundColor: isBottomWinner ? "rgba(40, 167, 69, 0.1)" : (isBottomLoser ? "rgba(220, 53, 69, 0.05)" : "transparent"),
+                        transition: "all 0.3s ease"
                     }}
                 >
                     {playerBottom}

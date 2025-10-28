@@ -123,7 +123,7 @@ function EventPage() {
                 <div className={styles.headerButtons}>
                     {isAuthorized && (
                         <button
-                            onClick={() => navigate('/tournamentControl')}
+                            onClick={() => navigate(`/tournament/${tournamentId}/control`)}
                             className={styles.controlButton}
                         >
                             Control Panel

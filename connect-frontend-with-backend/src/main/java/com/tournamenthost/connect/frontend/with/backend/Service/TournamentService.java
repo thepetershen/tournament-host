@@ -308,7 +308,12 @@ public class TournamentService {
                 eventInNestedArr.add(curRoundMatches);
                 matchAmountForCurRound /= 2;
             }
-            ArrayList<User> draw = TournamentUtil.generateDrawUsingSeeding(players, matchAmount, event.getPlayerSeeds());
+            // Ensure playerSeeds is never null (should be empty HashMap if no seeds)
+            Map<Long, Integer> seeds = event.getPlayerSeeds();
+            if (seeds == null) {
+                seeds = new HashMap<>();
+            }
+            ArrayList<User> draw = TournamentUtil.generateDrawUsingSeeding(players, matchAmount, seeds);
             List<Match> bottomRoundMatches = eventInNestedArr.get(0);
             for (int i = 0; i < draw.size(); i++) {
                 if (i % 2 == 0) {
@@ -317,6 +322,43 @@ public class TournamentService {
                     bottomRoundMatches.get(i / 2).setPlayerB(draw.get(i));
                 }
             }
+
+            // Auto-advance players with byes in the first round
+            if (eventInNestedArr.size() > 1) {
+                List<Match> secondRoundMatches = eventInNestedArr.get(1);
+                for (int i = 0; i < bottomRoundMatches.size(); i++) {
+                    Match firstRoundMatch = bottomRoundMatches.get(i);
+                    User playerA = firstRoundMatch.getPlayerA();
+                    User playerB = firstRoundMatch.getPlayerB();
+
+                    // If one player has a bye, auto-advance the other player
+                    if (playerA == null && playerB != null) {
+                        // PlayerB gets bye, advance to next round
+                        firstRoundMatch.setWinner(playerB);
+                        firstRoundMatch.setCompleted(true);
+                        // Advance to second round
+                        Match nextMatch = secondRoundMatches.get(i / 2);
+                        if (i % 2 == 0) {
+                            nextMatch.setPlayerA(playerB);
+                        } else {
+                            nextMatch.setPlayerB(playerB);
+                        }
+                    } else if (playerB == null && playerA != null) {
+                        // PlayerA gets bye, advance to next round
+                        firstRoundMatch.setWinner(playerA);
+                        firstRoundMatch.setCompleted(true);
+                        // Advance to second round
+                        Match nextMatch = secondRoundMatches.get(i / 2);
+                        if (i % 2 == 0) {
+                            nextMatch.setPlayerA(playerA);
+                        } else {
+                            nextMatch.setPlayerB(playerA);
+                        }
+                    }
+                    // If both are null or both are present, do nothing (normal match or error state)
+                }
+            }
+
             List<Round> rounds = new ArrayList<>();
             for (int i = 0; i < eventInNestedArr.size(); i++) {
                 Round round = new Round();
@@ -504,10 +546,12 @@ public class TournamentService {
         
         // Handle bracket advancement for single elimination events
         BaseEvent event = match.getEvent();
-        
+
         // For round robin events, no advancement is needed
         if (event instanceof SingleElimEvent singleElim) {
             advanceWinnerInSingleElim(match, winner, singleElim);
+        } else if (event instanceof DoubleElimEvent doubleElim) {
+            advanceInDoubleElim(match, winner, doubleElim);
         }
 
         // Set match result
@@ -517,6 +561,12 @@ public class TournamentService {
 
         // Save the match
         matchRepo.save(match);
+
+        // For double elim, auto-advance any single players in losers bracket after each result
+        if (event instanceof DoubleElimEvent doubleElim) {
+            autoAdvanceSinglePlayersInLosersBracket(doubleElim);
+            matchRepo.save(match);
+        }
 
         
     }
@@ -582,6 +632,123 @@ public class TournamentService {
     // ==================== DOUBLE ELIMINATION METHODS ====================
 
     /**
+     * Advance winner and loser in double elimination
+     */
+    private void advanceInDoubleElim(Match completedMatch, User winner, DoubleElimEvent doubleElim) {
+        List<DoubleElimRound> winnersRounds = doubleElim.getWinnersBracket();
+        List<DoubleElimRound> losersRounds = doubleElim.getLosersBracket();
+
+        // Determine the loser
+        User loser = completedMatch.getPlayerA().equals(winner) ?
+                     completedMatch.getPlayerB() : completedMatch.getPlayerA();
+
+        // Find which bracket and round this match is in
+        boolean isWinnersBracket = false;
+        int currentRoundIndex = -1;
+        int matchPositionInRound = -1;
+
+        // Check winners bracket
+        for (int i = 0; i < winnersRounds.size(); i++) {
+            DoubleElimRound round = winnersRounds.get(i);
+            List<Match> matches = round.getMatches();
+            for (int j = 0; j < matches.size(); j++) {
+                if (matches.get(j).getId().equals(completedMatch.getId())) {
+                    isWinnersBracket = true;
+                    currentRoundIndex = i;
+                    matchPositionInRound = j;
+                    break;
+                }
+            }
+            if (isWinnersBracket) break;
+        }
+
+        // Check losers bracket if not found in winners
+        if (!isWinnersBracket) {
+            for (int i = 0; i < losersRounds.size(); i++) {
+                DoubleElimRound round = losersRounds.get(i);
+                List<Match> matches = round.getMatches();
+                for (int j = 0; j < matches.size(); j++) {
+                    if (matches.get(j).getId().equals(completedMatch.getId())) {
+                        currentRoundIndex = i;
+                        matchPositionInRound = j;
+                        break;
+                    }
+                }
+                if (currentRoundIndex != -1) break;
+            }
+        }
+
+        if (currentRoundIndex == -1) {
+            throw new IllegalArgumentException("Could not find the completed match in any round");
+        }
+
+        if (isWinnersBracket) {
+            // Advance winner to next winners round
+            if (currentRoundIndex < winnersRounds.size() - 1) {
+                DoubleElimRound nextWinnersRound = winnersRounds.get(currentRoundIndex + 1);
+                List<Match> nextRoundMatches = nextWinnersRound.getMatches();
+                int nextMatchIndex = matchPositionInRound / 2;
+
+                if (nextMatchIndex < nextRoundMatches.size()) {
+                    Match nextMatch = nextRoundMatches.get(nextMatchIndex);
+                    if (!nextMatch.isCompleted()) {
+                        if (matchPositionInRound % 2 == 0) {
+                            nextMatch.setPlayerA(winner);
+                        } else {
+                            nextMatch.setPlayerB(winner);
+                        }
+                        matchRepo.save(nextMatch);
+                    }
+                }
+            }
+
+            // Feed loser to losers bracket (if within feed-in cutoff)
+            if (currentRoundIndex <= doubleElim.getFeedInCutoffRound()) {
+                // Find the corresponding losers bracket round that receives from this winners round
+                for (DoubleElimRound losersRound : losersRounds) {
+                    Integer feedsFrom = losersRound.getFeedsFromWinnersRound();
+                    if (feedsFrom != null && feedsFrom.intValue() == currentRoundIndex) {
+
+                        List<Match> losersMatches = losersRound.getMatches();
+                        // Find an empty slot in this losers round
+                        for (Match losersMatch : losersMatches) {
+                            if (losersMatch.getPlayerA() == null) {
+                                losersMatch.setPlayerA(loser);
+                                matchRepo.save(losersMatch);
+                                break;
+                            } else if (losersMatch.getPlayerB() == null) {
+                                losersMatch.setPlayerB(loser);
+                                matchRepo.save(losersMatch);
+                                break;
+                            }
+                        }
+                        break;
+                    }
+                }
+            }
+        } else {
+            // In losers bracket - only advance winner (loser is eliminated)
+            if (currentRoundIndex < losersRounds.size() - 1) {
+                DoubleElimRound nextLosersRound = losersRounds.get(currentRoundIndex + 1);
+                List<Match> nextRoundMatches = nextLosersRound.getMatches();
+                int nextMatchIndex = matchPositionInRound / 2;
+
+                if (nextMatchIndex < nextRoundMatches.size()) {
+                    Match nextMatch = nextRoundMatches.get(nextMatchIndex);
+                    if (!nextMatch.isCompleted()) {
+                        if (matchPositionInRound % 2 == 0) {
+                            nextMatch.setPlayerA(winner);
+                        } else {
+                            nextMatch.setPlayerB(winner);
+                        }
+                        matchRepo.save(nextMatch);
+                    }
+                }
+            }
+        }
+    }
+
+    /**
      * Initialize a Double Elimination event
      * Creates winners bracket, losers bracket with feed-in structure
      */
@@ -608,6 +775,10 @@ public class TournamentService {
         // Save all matches and event
         matchRepo.saveAll(allMatches);
         eventRepo.save(doubleElim);
+
+        // Auto-advance any players in losers bracket who are alone in their match
+        autoAdvanceSinglePlayersInLosersBracket(doubleElim);
+        matchRepo.saveAll(allMatches);
     }
 
     /**
@@ -647,25 +818,77 @@ public class TournamentService {
             matchCount /= 2;
         }
 
+        // Auto-advance players with byes in the first round of winners bracket
+        if (winnersRounds.size() > 1) {
+            List<Match> firstRoundMatches = winnersRounds.get(0).getMatches();
+            List<Match> secondRoundMatches = winnersRounds.get(1).getMatches();
+
+            for (int i = 0; i < firstRoundMatches.size(); i++) {
+                Match firstRoundMatch = firstRoundMatches.get(i);
+                User playerA = firstRoundMatch.getPlayerA();
+                User playerB = firstRoundMatch.getPlayerB();
+
+                // If one player has a bye, auto-advance the other player
+                if (playerA == null && playerB != null) {
+                    // PlayerB gets bye, advance to next round
+                    firstRoundMatch.setWinner(playerB);
+                    firstRoundMatch.setCompleted(true);
+                    // Advance to second round
+                    Match nextMatch = secondRoundMatches.get(i / 2);
+                    if (i % 2 == 0) {
+                        nextMatch.setPlayerA(playerB);
+                    } else {
+                        nextMatch.setPlayerB(playerB);
+                    }
+                } else if (playerB == null && playerA != null) {
+                    // PlayerA gets bye, advance to next round
+                    firstRoundMatch.setWinner(playerA);
+                    firstRoundMatch.setCompleted(true);
+                    // Advance to second round
+                    Match nextMatch = secondRoundMatches.get(i / 2);
+                    if (i % 2 == 0) {
+                        nextMatch.setPlayerA(playerA);
+                    } else {
+                        nextMatch.setPlayerB(playerA);
+                    }
+                }
+            }
+        }
+
         return winnersRounds;
     }
 
     /**
      * Create the losers bracket structure
+     * Losers bracket alternates between:
+     * - Even rounds (0, 2, 4...): Feed-in rounds that receive losers from winners bracket
+     * - Odd rounds (1, 3, 5...): Progression rounds where losers bracket winners advance
      */
     private List<DoubleElimRound> createLosersBracket(DoubleElimEvent event, int losersRoundCount,
                                                        int winnersRoundCount, List<Match> allMatches) {
         List<DoubleElimRound> losersRounds = new ArrayList<>();
 
-        // Losers bracket has alternating rounds:
-        // - Feed-in rounds (receive losers from winners)
-        // - Progression rounds (winners of losers matches advance)
-
-        int matchCount = event.getPlayers().size() / 4; // Start with half the first round losers
+        // Track match count for each round
+        // Start with half of first winners round (those who lose first winners round)
+        int bracketSize = TournamentUtil.nextPowerOfTwo(event.getPlayers().size());
+        int firstRoundMatchCount = bracketSize / 4; // Half of the first winners round losers
 
         for (int round = 0; round < losersRoundCount; round++) {
             DoubleElimRound doubleElimRound = new DoubleElimRound(round, BracketType.LOSERS);
             doubleElimRound.setEvent(event);
+
+            // Calculate match count for this round
+            int matchCount;
+            if (round == 0) {
+                // First round: receives losers from winners round 0
+                matchCount = firstRoundMatchCount;
+            } else if (round % 2 == 0) {
+                // Even rounds are feed-in rounds: same as previous round (progression round kept same count)
+                matchCount = losersRounds.get(round - 1).getMatches().size();
+            } else {
+                // Odd rounds are progression rounds: half of previous round (feed-in had double)
+                matchCount = Math.max(1, losersRounds.get(round - 1).getMatches().size() / 2);
+            }
 
             // Determine if this is a feed-in round
             int winnersRoundFeeding = round / 2;
@@ -673,29 +896,99 @@ public class TournamentService {
                 doubleElimRound.setFeedsFromWinnersRound(winnersRoundFeeding);
             }
 
+            // Create matches for this round
             List<Match> roundMatches = new ArrayList<>();
-            for (int i = 0; i < Math.max(1, matchCount); i++) {
+            for (int i = 0; i < matchCount; i++) {
                 Match match = new Match();
                 match.setEvent(event);
-                // Players will be filled in via feed-in or progression
                 roundMatches.add(match);
                 allMatches.add(match);
             }
 
             doubleElimRound.setMatches(roundMatches);
             losersRounds.add(doubleElimRound);
-
-            // Adjust match count for next round
-            if (round % 2 == 0) {
-                // Feed-in round: match count stays same or increases
-                matchCount = Math.max(1, matchCount);
-            } else {
-                // Progression round: match count halves
-                matchCount = Math.max(1, matchCount / 2);
-            }
         }
 
         return losersRounds;
+    }
+
+    /**
+     * Auto-advance players in losers bracket who are alone in their match
+     * This handles cases where odd numbers of players feed into losers bracket
+     */
+    private void autoAdvanceSinglePlayersInLosersBracket(DoubleElimEvent event) {
+        List<DoubleElimRound> losersRounds = event.getLosersBracket();
+
+        for (int roundIndex = 0; roundIndex < losersRounds.size(); roundIndex++) {
+            DoubleElimRound currentRound = losersRounds.get(roundIndex);
+            List<Match> matches = currentRound.getMatches();
+
+            for (int matchIndex = 0; matchIndex < matches.size(); matchIndex++) {
+                Match match = matches.get(matchIndex);
+                User playerA = match.getPlayerA();
+                User playerB = match.getPlayerB();
+
+                // If match already completed, skip
+                if (match.isCompleted()) {
+                    continue;
+                }
+
+                // If one player has a bye (is null), auto-advance the other
+                User advancingPlayer = null;
+                if (playerA != null && playerB == null) {
+                    advancingPlayer = playerA;
+                } else if (playerB != null && playerA == null) {
+                    advancingPlayer = playerB;
+                }
+
+                if (advancingPlayer != null) {
+                    // Mark match as completed with the single player as winner
+                    match.setWinner(advancingPlayer);
+                    match.setCompleted(true);
+
+                    // Advance to next round if not the final
+                    if (roundIndex < losersRounds.size() - 1) {
+                        DoubleElimRound nextRound = losersRounds.get(roundIndex + 1);
+                        List<Match> nextRoundMatches = nextRound.getMatches();
+
+                        // Determine which match in next round this player advances to
+                        int nextMatchIndex = matchIndex / 2;
+                        if (nextMatchIndex < nextRoundMatches.size()) {
+                            Match nextMatch = nextRoundMatches.get(nextMatchIndex);
+
+                            // Assign to playerA or playerB slot based on position
+                            if (matchIndex % 2 == 0) {
+                                if (nextMatch.getPlayerA() == null) {
+                                    nextMatch.setPlayerA(advancingPlayer);
+                                }
+                            } else {
+                                if (nextMatch.getPlayerB() == null) {
+                                    nextMatch.setPlayerB(advancingPlayer);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Recursively check again in case advancing created more single-player matches
+        boolean hasMoreSinglePlayerMatches = false;
+        for (DoubleElimRound round : losersRounds) {
+            for (Match match : round.getMatches()) {
+                if (!match.isCompleted() &&
+                    ((match.getPlayerA() != null && match.getPlayerB() == null) ||
+                     (match.getPlayerA() == null && match.getPlayerB() != null))) {
+                    hasMoreSinglePlayerMatches = true;
+                    break;
+                }
+            }
+            if (hasMoreSinglePlayerMatches) break;
+        }
+
+        if (hasMoreSinglePlayerMatches) {
+            autoAdvanceSinglePlayersInLosersBracket(event);
+        }
     }
 
     // ==================== AUTHORIZATION METHODS ====================

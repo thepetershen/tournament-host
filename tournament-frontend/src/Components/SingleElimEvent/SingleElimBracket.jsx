@@ -30,19 +30,25 @@ function createMatchesForRound(roundDraw, isFirstRound,curSpacing) {
 
     // Add matches and spacers between them
     roundDraw.forEach((match, index) => {
+        // Handle new MatchDTO structure
+        const playerAName = match.playerA?.username || match.playerA?.name || 'TBD';
+        const playerBName = match.playerB?.username || match.playerB?.name || 'TBD';
+        const winnerName = match.winner?.username || match.winner?.name || null;
+
         toDisplay.push(
-            <SpacingContext.Provider value = {MATCH_HEIGHT}>
+            <SpacingContext.Provider value = {MATCH_HEIGHT} key={`match-${index}`}>
                 <SingleElimEventMatch
-                    key={`match-${index}`}
-                    playerTop={match.playerA.username}
-                    playerBottom={match.playerB.username}
-                    winner={match.playerA.username}
-                    arrOfScore={match.score}
+                    playerTop={playerAName}
+                    playerBottom={playerBName}
+                    winner={winnerName}
+                    arrOfScore={match.score || []}
                     nextMatch={roundDraw.length !== 1}
                     prevMatch={!isFirstRound}
+                    matchId={match.id}
+                    isCompleted={match.completed}
                 />
             </SpacingContext.Provider>
-            
+
         );
 
         if (index < roundDraw.length - 1) {
