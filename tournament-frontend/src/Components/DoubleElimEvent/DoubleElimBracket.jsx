@@ -1,6 +1,7 @@
+import SingleElimBracket from "../SingleElimEvent/SingleElimBracket";
 import SingleElimEventMatch from "../SingleElimEvent/SingleElimEventMatch";
 import styles from "./DoubleElimBracketStyle.module.css";
-import React, { createContext } from "react";
+import React, { act, createContext } from "react";
 
 export const SpacingContext = createContext();
 
@@ -30,41 +31,57 @@ function DoubleElimBracket({ draw }) {
 
     const winnersBracket = draw.winners;
     const losersBracket = draw.losers;
+    const bronzeMatch = draw.bronze;
 
-    // Calculate spacing for each bracket
-    // Winners bracket follows standard single-elim pattern (each round halves)
-    const winnersSpacing = calculatePadding(TRUE_MATCH_HEIGHT, SPACER_HEIGHT, winnersBracket.length);
-    const winnersSpacingLines = calculatePaddingLines(TRUE_MATCH_HEIGHT, SPACER_HEIGHT, winnersBracket.length);
 
     // Losers bracket has custom spacing because match counts don't always halve
-    const losersSpacing = calculateLosersBracketPadding(TRUE_MATCH_HEIGHT, SPACER_HEIGHT, losersBracket);
-    const losersSpacingLines = calculateLosersBracketPaddingLines(TRUE_MATCH_HEIGHT, SPACER_HEIGHT, losersBracket);
-
-    // Create bracket JSX
-    const winnersDrawInXML = createAllRounds(winnersBracket, winnersSpacing, winnersSpacingLines, false);
+    const losersSpacing = calculatePadding(TRUE_MATCH_HEIGHT, SPACER_HEIGHT, losersBracket);
+    const losersSpacingLines = calculatePaddingLines(TRUE_MATCH_HEIGHT, SPACER_HEIGHT, losersBracket);
+    const loserDrawXML = createAllRounds(losersBracket, losersSpacing, losersSpacingLines);
+    
     const losersDrawInXML = createAllRounds(losersBracket, losersSpacing, losersSpacingLines, true);
 
     return (
         <div className={styles.doubleElimContainer}>
             {/* Winners Bracket */}
             <div className={styles.bracketSection}>
-                <div className={styles.bracketLabel}>
-                    <h3>Winners Bracket</h3>
+                <div className = {styles.bracketLabel}>
+                    <h3>Winner Bracket</h3>
                 </div>
-                <div className={styles.main}>
-                    {winnersDrawInXML}
-                </div>
+                <SingleElimBracket draw = {winnersBracket}/>
             </div>
+            
 
             {/* Losers Bracket */}
             <div className={styles.bracketSection}>
                 <div className={styles.bracketLabel}>
                     <h3>Losers Bracket</h3>
                 </div>
-                <div className={styles.main}>
-                    {losersDrawInXML}
-                </div>
+                <SingleElimBracket draw = {losersBracket}/>
             </div>
+
+            {/* Bronze Match (3rd/4th place) */}
+            {bronzeMatch && (
+                <div className={styles.bracketSection}>
+                    <div className={styles.bracketLabel}>
+                        <h3>Bronze Match (3rd/4th Place)</h3>
+                    </div>
+                    <div className={styles.main}>
+                        <SpacingContext.Provider value={MATCH_HEIGHT}>
+                            <SingleElimEventMatch
+                                playerTop={bronzeMatch.playerA?.username || "TBD"}
+                                playerBottom={bronzeMatch.playerB?.username || "TBD"}
+                                winner={bronzeMatch.winner?.username}
+                                arrOfScore={bronzeMatch.score || []}
+                                nextMatch={false}
+                                prevMatch={false}
+                                matchId={bronzeMatch.id}
+                                isCompleted={bronzeMatch.completed}
+                            />
+                        </SpacingContext.Provider>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
@@ -133,87 +150,31 @@ function createAllRounds(draw, spacing, spacingLines, isLosersBracket = false) {
 /*
     Returns an array representing in order of the padding between matches. The initial padding is half of the returned padding
 */
-function calculatePadding(TRUE_MATCH_HEIGHT, SPACER_HEIGHT, drawLength) {
+function calculatePadding(TRUE_MATCH_HEIGHT, SPACER_HEIGHT, draw) {
     const answer = [];
     answer.push(SPACER_HEIGHT);
-    for (let i = 1; i < drawLength; i++) {
-        answer.push((TRUE_MATCH_HEIGHT * (Math.pow(2, i) - 1)) + (SPACER_HEIGHT * (Math.pow(2, i))));
-    }
-    return answer;
-}
-
-function calculatePaddingLines(TRUE_MATCH_HEIGHT, SPACER_HEIGHT, drawLength) {
-    const answer = [];
-    for (let i = 0; i < drawLength - 1; i++) {
-        answer.push((TRUE_MATCH_HEIGHT * (Math.pow(2, i))) + (SPACER_HEIGHT * (Math.pow(2, i))));
-    }
-    return answer;
-}
-
-/**
- * Calculate spacing for losers bracket based on actual match counts
- * Losers bracket doesn't follow power-of-2 pattern due to feed-in rounds
- */
-function calculateLosersBracketPadding(TRUE_MATCH_HEIGHT, SPACER_HEIGHT, losersBracket) {
-    const answer = [];
-
-    for (let i = 0; i < losersBracket.length; i++) {
-        const currentRound = losersBracket[i];
-        const matchCount = currentRound.length;
-
-        if (i === 0) {
-            // First round uses base spacing
-            answer.push(SPACER_HEIGHT);
-        } else {
-            const prevRound = losersBracket[i - 1];
-            const prevMatchCount = prevRound.length;
-
-            // If match count doubled (feed-in round), reduce spacing by half
-            // If match count stayed same or halved (progression round), calculate normally
-            if (matchCount > prevMatchCount) {
-                // Feed-in: more matches, so reduce spacing
-                const prevSpacing = answer[i - 1];
-                answer.push(Math.max(SPACER_HEIGHT, prevSpacing / 2));
-            } else if (matchCount === prevMatchCount) {
-                // Same count: keep spacing the same
-                answer.push(answer[i - 1]);
-            } else {
-                // Halved: double the spacing (standard single-elim behavior)
-                answer.push((answer[i - 1] * 2) + TRUE_MATCH_HEIGHT);
-            }
+    var actualHeight = 0;
+    for (let i = 1; i < draw.length; i++) {
+        if (draw[i].length != draw[i-1].length) {
+            actualHeight++;
         }
+        answer.push((TRUE_MATCH_HEIGHT * (Math.pow(2, actualHeight) - 1)) + (SPACER_HEIGHT * (Math.pow(2, actualHeight))));
     }
-
     return answer;
 }
 
-/**
- * Calculate connecting line spacing for losers bracket based on actual match counts
- */
-function calculateLosersBracketPaddingLines(TRUE_MATCH_HEIGHT, SPACER_HEIGHT, losersBracket) {
+function calculatePaddingLines(TRUE_MATCH_HEIGHT, SPACER_HEIGHT, draw) {
     const answer = [];
-
-    for (let i = 0; i < losersBracket.length - 1; i++) {
-        const currentRound = losersBracket[i];
-        const nextRound = losersBracket[i + 1];
-        const currentMatchCount = currentRound.length;
-        const nextMatchCount = nextRound.length;
-
-        if (nextMatchCount > currentMatchCount) {
-            // Feed-in round coming: connecting lines need to account for new players
-            // Lines should be shorter/tighter
-            answer.push(TRUE_MATCH_HEIGHT + SPACER_HEIGHT);
-        } else if (nextMatchCount === currentMatchCount) {
-            // Same match count: standard spacing
-            answer.push((TRUE_MATCH_HEIGHT * 2) + (SPACER_HEIGHT * 2));
-        } else {
-            // Next round has fewer matches: standard progression
-            const ratio = currentMatchCount / nextMatchCount;
-            answer.push((TRUE_MATCH_HEIGHT * ratio) + (SPACER_HEIGHT * ratio));
+    var actualHeight = 0;
+    for (let i = 0; i < draw.length - 1; i++) {
+        if (i > 0 && draw[i].length != draw[i-1].length) {
+            actualHeight++;
         }
+        answer.push((TRUE_MATCH_HEIGHT * (Math.pow(2, actualHeight))) + (SPACER_HEIGHT * (Math.pow(2, actualHeight))));
     }
-
     return answer;
 }
+
+
 
 export default DoubleElimBracket;

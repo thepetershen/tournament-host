@@ -45,6 +45,7 @@
 }
 
 .round {
+    display: flex;
     flex-direction: column;
     justify-content: space-between;
     width: fit-content;    /* Only as wide as its content */

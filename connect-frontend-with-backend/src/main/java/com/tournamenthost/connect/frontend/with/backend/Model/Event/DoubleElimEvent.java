@@ -2,12 +2,15 @@ package com.tournamenthost.connect.frontend.with.backend.Model.Event;
 
 import java.util.ArrayList;
 import java.util.List;
+import com.tournamenthost.connect.frontend.with.backend.Model.Match;
 import com.tournamenthost.connect.frontend.with.backend.Model.Tournament;
 import com.tournamenthost.connect.frontend.with.backend.Model.User;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.DiscriminatorValue;
 import jakarta.persistence.Entity;
+import jakarta.persistence.JoinColumn;
 import jakarta.persistence.OneToMany;
+import jakarta.persistence.OneToOne;
 
 /**
  * Double Elimination Event with Full Feed-in
@@ -36,6 +39,8 @@ public class DoubleElimEvent extends BaseEvent {
      * Winner of this bracket = 1st place
      */
     @OneToMany(mappedBy = "event", cascade = CascadeType.ALL, orphanRemoval = true)
+    @org.hibernate.annotations.Where(clause = "bracket_type = 'WINNERS'")
+    @jakarta.persistence.OrderBy("roundNumber ASC")
     private List<DoubleElimRound> winnersBracket;
 
     /**
@@ -50,6 +55,8 @@ public class DoubleElimEvent extends BaseEvent {
      * - Losers Bracket: 5 rounds (LR1, LR2, LR3, LR4, LF)
      */
     @OneToMany(mappedBy = "event", cascade = CascadeType.ALL, orphanRemoval = true)
+    @org.hibernate.annotations.Where(clause = "bracket_type = 'LOSERS'")
+    @jakarta.persistence.OrderBy("roundNumber ASC")
     private List<DoubleElimRound> losersBracket;
 
     /**
@@ -62,12 +69,20 @@ public class DoubleElimEvent extends BaseEvent {
      */
     private int feedInCutoffRound;
 
+    /**
+     * Bronze match (3rd/4th place): Semifinal losers from winners bracket
+     */
+    @OneToOne(cascade = CascadeType.ALL, orphanRemoval = true)
+    @JoinColumn(name = "bronze_match_id")
+    private Match bronzeMatch;
+
     // Constructors
     public DoubleElimEvent() {
         super();
         this.winnersBracket = new ArrayList<>();
         this.losersBracket = new ArrayList<>();
         this.feedInCutoffRound = -1; // -1 means not set yet, will be calculated on initialization
+        this.bronzeMatch = null;
     }
 
     public DoubleElimEvent(String name, List<User> players, Tournament tournament, int index) {
@@ -75,6 +90,7 @@ public class DoubleElimEvent extends BaseEvent {
         this.winnersBracket = new ArrayList<>();
         this.losersBracket = new ArrayList<>();
         this.feedInCutoffRound = -1;
+        this.bronzeMatch = null;
     }
 
     // Winners Bracket methods
@@ -148,6 +164,15 @@ public class DoubleElimEvent extends BaseEvent {
 
     public void setFeedInCutoffRound(int feedInCutoffRound) {
         this.feedInCutoffRound = feedInCutoffRound;
+    }
+
+    // Bronze Match methods
+    public Match getBronzeMatch() {
+        return bronzeMatch;
+    }
+
+    public void setBronzeMatch(Match bronzeMatch) {
+        this.bronzeMatch = bronzeMatch;
     }
 
     /**

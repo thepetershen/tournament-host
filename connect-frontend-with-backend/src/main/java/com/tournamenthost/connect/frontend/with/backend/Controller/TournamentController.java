@@ -365,13 +365,13 @@ public class TournamentController {
                     }
                     dtoDraw.add(playerRow);
                 }
-            } else if (event instanceof DoubleElimEvent) {
+            } else if (event instanceof DoubleElimEvent doubleElimEvent) {
                 eventType = "DOUBLE_ELIM";
                 Object drawObject = tournamentService.getEventDraw(tournamentId, eventIndex);
                 Map<String, List<List<Match>>> draw = (Map<String, List<List<Match>>>) drawObject;
 
-                // Create a map to return with winners and losers brackets
-                Map<String, List<List<MatchDTO>>> doubleElimDraw = new TreeMap<>();
+                // Create a map to return with winners, losers brackets, and bronze match
+                Map<String, Object> doubleElimDraw = new TreeMap<>();
 
                 // Process winners bracket
                 List<List<MatchDTO>> winnersDTOs = new ArrayList<>();
@@ -394,6 +394,12 @@ public class TournamentController {
                     losersDTOs.add(roundDTOs);
                 }
                 doubleElimDraw.put("losers", losersDTOs);
+
+                // Add bronze match (3rd/4th place)
+                Match bronzeMatch = doubleElimEvent.getBronzeMatch();
+                if (bronzeMatch != null) {
+                    doubleElimDraw.put("bronze", createMatchDTO(bronzeMatch, event));
+                }
 
                 DrawResponseDTO response = new DrawResponseDTO();
                 response.setEventType(eventType);

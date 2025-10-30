@@ -10,8 +10,8 @@ const TRUE_MATCH_HEIGHT = MATCH_HEIGHT + 13; //to account for padding and spacin
 
 function SingleElimBracket ({draw}) {
     
-    const spacing = calculatePadding(TRUE_MATCH_HEIGHT, SPACER_HEIGHT, draw.length);
-    const spacingLines = calculatePaddingLines(TRUE_MATCH_HEIGHT, SPACER_HEIGHT, draw.length);
+    const spacing = calculatePadding(TRUE_MATCH_HEIGHT, SPACER_HEIGHT, draw);
+    const spacingLines = calculatePaddingLines(TRUE_MATCH_HEIGHT, SPACER_HEIGHT, draw);
     const drawInXML = createAllRounds(draw, spacing, spacingLines);
 
     return (
@@ -94,19 +94,27 @@ function createAllRounds (draw, spacing, spacingLines) {
 /*
     returns a array representing in order of the padding between matches. The initially padding is half of the returned padding
 */
-function calculatePadding(TRUE_MATCH_HEIGHT, SPACER_HEIGHT, drawLength) {
+function calculatePadding(TRUE_MATCH_HEIGHT, SPACER_HEIGHT, draw) {
     const answer = [];
     answer.push(SPACER_HEIGHT);
-    for (let i = 1; i < drawLength; i++) {
-        answer.push((TRUE_MATCH_HEIGHT * (Math.pow(2, i) - 1)) + (SPACER_HEIGHT * (Math.pow(2, i))));
+    var actualHeight = 0;
+    for (let i = 1; i < draw.length; i++) {
+        if (draw[i].length != draw[i-1].length) {
+            actualHeight++;
+        }
+        answer.push((TRUE_MATCH_HEIGHT * (Math.pow(2, actualHeight) - 1)) + (SPACER_HEIGHT * (Math.pow(2, actualHeight))));
     }
     return answer;
 }
 
-function calculatePaddingLines(TRUE_MATCH_HEIGHT, SPACER_HEIGHT, drawLength) {
+function calculatePaddingLines(TRUE_MATCH_HEIGHT, SPACER_HEIGHT, draw) {
     const answer = [];
-    for (let i = 0; i < drawLength-1; i++) {
-        answer.push((TRUE_MATCH_HEIGHT * (Math.pow(2, i))) + (SPACER_HEIGHT * (Math.pow(2, i))));
+    var actualHeight = 0;
+    for (let i = 0; i < draw.length - 1; i++) {
+        if (i > 0 && draw[i].length != draw[i-1].length) {
+            actualHeight++;
+        }
+        answer.push((TRUE_MATCH_HEIGHT * (Math.pow(2, actualHeight))) + (SPACER_HEIGHT * (Math.pow(2, actualHeight))));
     }
     return answer;
 }

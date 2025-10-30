@@ -441,8 +441,13 @@ public class TournamentService {
             for (DoubleElimRound round : doubleElimEvent.getLosersBracket()) {
                 matchesToDelete.addAll(round.getMatches());
             }
+            // Add bronze match if it exists
+            if (doubleElimEvent.getBronzeMatch() != null) {
+                matchesToDelete.add(doubleElimEvent.getBronzeMatch());
+            }
             doubleElimEvent.getWinnersBracket().clear();
             doubleElimEvent.getLosersBracket().clear();
+            doubleElimEvent.setBronzeMatch(null);
         } else {
             throw new IllegalArgumentException("Unsupported event type");
         }
@@ -725,6 +730,18 @@ public class TournamentService {
                         break;
                     }
                 }
+            } else if (currentRoundIndex == winnersRounds.size() - 2) {
+                // Semifinals losers go to bronze match (3rd/4th place)
+                Match bronzeMatch = doubleElim.getBronzeMatch();
+                if (bronzeMatch != null && !bronzeMatch.isCompleted()) {
+                    if (bronzeMatch.getPlayerA() == null) {
+                        bronzeMatch.setPlayerA(loser);
+                        matchRepo.save(bronzeMatch);
+                    } else if (bronzeMatch.getPlayerB() == null) {
+                        bronzeMatch.setPlayerB(loser);
+                        matchRepo.save(bronzeMatch);
+                    }
+                }
             }
         } else {
             // In losers bracket - only advance winner (loser is eliminated)
@@ -750,27 +767,37 @@ public class TournamentService {
 
     /**
      * Initialize a Double Elimination event
-     * Creates winners bracket, losers bracket with feed-in structure
+     *
+     * Structure:
+     * - Winners bracket: Standard single elimination
+     * - Losers bracket: Sized at (bracketSize/2), receives losers from winners until semifinals
+     * - Bronze match: Semifinal losers from winners bracket play for 3rd/4th place
+     * - Feed-ins stop BEFORE semifinals (semifinals and finals don't feed losers)
      */
     private void initializeDoubleElimEvent(DoubleElimEvent doubleElim, List<User> players) {
         int bracketSize = TournamentUtil.nextPowerOfTwo(players.size());
-        int winnersRoundCount = (int) (Math.log(bracketSize) / Math.log(2));
 
-        // Calculate losers rounds: approximately 2 * winnersRounds - 1
-        int losersRoundCount = (2 * winnersRoundCount) - 1;
-
-        // Set feed-in cutoff (last 2 rounds of winners don't feed in)
-        doubleElim.setFeedInCutoffRound(Math.max(0, winnersRoundCount - 2));
+        // Feed-in cutoff: only feed in from quarterfinals (first round only)
+        // After quarterfinals, losers bracket plays out independently
+        int feedInCutoff = 0;  // Only feed from round 0 (quarterfinals)
+        doubleElim.setFeedInCutoffRound(feedInCutoff);
 
         List<Match> allMatches = new ArrayList<>();
 
-        // 1. Create Winners Bracket (similar to single elim)
+        // 1. Create Winners Bracket (standard single elimination)
         List<DoubleElimRound> winnersRounds = createWinnersBracket(doubleElim, players, bracketSize, allMatches);
         doubleElim.addWinnersRounds(winnersRounds);
 
-        // 2. Create Losers Bracket (empty matches, filled as feed-ins occur)
-        List<DoubleElimRound> losersRounds = createLosersBracket(doubleElim, losersRoundCount, winnersRoundCount, allMatches);
+        // 2. Create Losers Bracket (half the size of winners bracket)
+        int losersBracketSize = bracketSize / 2;
+        List<DoubleElimRound> losersRounds = createLosersBracket(doubleElim, losersBracketSize, feedInCutoff, allMatches);
         doubleElim.addLosersRounds(losersRounds);
+
+        // 3. Create Bronze Match (3rd/4th place) for semifinal losers
+        Match bronzeMatch = new Match();
+        bronzeMatch.setEvent(doubleElim);
+        allMatches.add(bronzeMatch);
+        doubleElim.setBronzeMatch(bronzeMatch);
 
         // Save all matches and event
         matchRepo.saveAll(allMatches);
@@ -860,53 +887,97 @@ public class TournamentService {
 
     /**
      * Create the losers bracket structure
-     * Losers bracket alternates between:
-     * - Even rounds (0, 2, 4...): Feed-in rounds that receive losers from winners bracket
-     * - Odd rounds (1, 3, 5...): Progression rounds where losers bracket winners advance
+     *
+     * Losers bracket pattern:
+     * - Feed-in round: Takes N losers from winners bracket round 0 (quarterfinals) only
+     * - Progression rounds: Winners from previous losers rounds advance until one remains
+     *
+     * After quarterfinals, the losers bracket plays out independently with no more feed-ins.
+     * Semifinals and finals losers go to bronze match instead.
+     *
+     * Example for 8 players (feedInCutoff=0):
+     * Winners: 4 matches (R0) → 2 matches (R1) → 1 match (R2)
+     * Losers:
+     * - L-R0: 2 matches (4 losers from W-R0 feed in) → 4 players remain [FEED-IN]
+     * - L-R1: 1 match (4 players → 2 players) [PROGRESSION]
+     * - L-R2: 1 match (2 players → 1 player) [PROGRESSION - LOSERS FINALS]
      */
-    private List<DoubleElimRound> createLosersBracket(DoubleElimEvent event, int losersRoundCount,
-                                                       int winnersRoundCount, List<Match> allMatches) {
+    private List<DoubleElimRound> createLosersBracket(DoubleElimEvent event, int losersBracketSize,
+                                                       int feedInCutoff, List<Match> allMatches) {
         List<DoubleElimRound> losersRounds = new ArrayList<>();
+        int round = 0;
 
-        // Track match count for each round
-        // Start with half of first winners round (those who lose first winners round)
-        int bracketSize = TournamentUtil.nextPowerOfTwo(event.getPlayers().size());
-        int firstRoundMatchCount = bracketSize / 4; // Half of the first winners round losers
+        // First feed-in round always has losersBracketSize/2 matches
+        int progressionMatchCount = losersBracketSize / 2;
 
-        for (int round = 0; round < losersRoundCount; round++) {
-            DoubleElimRound doubleElimRound = new DoubleElimRound(round, BracketType.LOSERS);
-            doubleElimRound.setEvent(event);
-
-            // Calculate match count for this round
-            int matchCount;
-            if (round == 0) {
-                // First round: receives losers from winners round 0
-                matchCount = firstRoundMatchCount;
-            } else if (round % 2 == 0) {
-                // Even rounds are feed-in rounds: same as previous round (progression round kept same count)
-                matchCount = losersRounds.get(round - 1).getMatches().size();
+        // Create feed-in and progression rounds until we reach the cutoff
+        for (int winnersRound = 0; winnersRound <= feedInCutoff; winnersRound++) {
+            // Calculate feed-in match count
+            // Feed-in needs to accommodate: N losers from winners + M winners from previous progression
+            // For first round: just take losers from winners (progressionMatchCount matches)
+            // For subsequent rounds: combine losers from winners (half of progressionMatchCount)
+            //                        with winners from previous progression (progressionMatchCount)
+            int feedInMatchCount;
+            if (winnersRound == 0) {
+                feedInMatchCount = progressionMatchCount;
             } else {
-                // Odd rounds are progression rounds: half of previous round (feed-in had double)
-                matchCount = Math.max(1, losersRounds.get(round - 1).getMatches().size() / 2);
+                // After first round, we need enough matches to pair up:
+                // - progressionMatchCount winners from previous round
+                // - progressionMatchCount losers from current winners round
+                feedInMatchCount = progressionMatchCount;
             }
 
-            // Determine if this is a feed-in round
-            int winnersRoundFeeding = round / 2;
-            if (winnersRoundFeeding < winnersRoundCount && round % 2 == 0) {
-                doubleElimRound.setFeedsFromWinnersRound(winnersRoundFeeding);
-            }
+            // Create feed-in round
+            DoubleElimRound feedInRound = new DoubleElimRound(round, BracketType.LOSERS);
+            feedInRound.setEvent(event);
+            feedInRound.setFeedsFromWinnersRound(winnersRound);
 
-            // Create matches for this round
-            List<Match> roundMatches = new ArrayList<>();
-            for (int i = 0; i < matchCount; i++) {
+            List<Match> feedInMatches = new ArrayList<>();
+            for (int i = 0; i < feedInMatchCount; i++) {
                 Match match = new Match();
                 match.setEvent(event);
-                roundMatches.add(match);
+                feedInMatches.add(match);
                 allMatches.add(match);
             }
+            feedInRound.setMatches(feedInMatches);
+            losersRounds.add(feedInRound);
+            round++;
 
-            doubleElimRound.setMatches(roundMatches);
-            losersRounds.add(doubleElimRound);
+            // Create progression round (winners from feed-in advance)
+            progressionMatchCount = Math.max(1, feedInMatchCount / 2);
+
+            DoubleElimRound progressionRound = new DoubleElimRound(round, BracketType.LOSERS);
+            progressionRound.setEvent(event);
+
+            List<Match> progressionMatches = new ArrayList<>();
+            for (int i = 0; i < progressionMatchCount; i++) {
+                Match match = new Match();
+                match.setEvent(event);
+                progressionMatches.add(match);
+                allMatches.add(match);
+            }
+            progressionRound.setMatches(progressionMatches);
+            losersRounds.add(progressionRound);
+            round++;
+        }
+
+        // After feed-ins stop, continue creating progression rounds until we reach 1 player
+        while (progressionMatchCount > 1) {
+            progressionMatchCount = progressionMatchCount / 2;
+
+            DoubleElimRound progressionRound = new DoubleElimRound(round, BracketType.LOSERS);
+            progressionRound.setEvent(event);
+
+            List<Match> progressionMatches = new ArrayList<>();
+            for (int i = 0; i < progressionMatchCount; i++) {
+                Match match = new Match();
+                match.setEvent(event);
+                progressionMatches.add(match);
+                allMatches.add(match);
+            }
+            progressionRound.setMatches(progressionMatches);
+            losersRounds.add(progressionRound);
+            round++;
         }
 
         return losersRounds;
