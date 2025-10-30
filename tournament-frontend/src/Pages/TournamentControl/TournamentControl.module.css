@@ -823,3 +823,200 @@
         grid-template-columns: 1fr;
     }
 }
+
+/* ==================== SEEDING STYLES ==================== */
+.seedingControls {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 24px;
+}
+
+.playerSeedList {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.playerSeedRow {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    transition: all 0.2s ease;
+}
+
+.playerSeedRow:hover {
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    transform: translateY(-2px);
+}
+
+.playerInfo {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex: 1;
+}
+
+.playerUsername {
+    font-weight: 600;
+    font-size: 16px;
+    color: #2c3e50;
+}
+
+.playerRealName {
+    color: #7f8c8d;
+    font-size: 14px;
+}
+
+.seedInputContainer {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.seedInputContainer label {
+    font-weight: 600;
+    color: #555;
+    font-size: 14px;
+}
+
+.seedInput {
+    width: 80px;
+    padding: 8px 12px;
+    border: 2px solid #ddd;
+    border-radius: 6px;
+    font-size: 16px;
+    text-align: center;
+    transition: all 0.2s ease;
+}
+
+.seedInput:focus {
+    outline: none;
+    border-color: #667eea;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.seedInput::placeholder {
+    color: #aaa;
+    font-size: 14px;
+}
+
+.seedList {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 16px;
+}
+
+.seedItem {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px;
+    background: #f8f9fa;
+    border-radius: 6px;
+}
+
+.seedNumber {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-weight: 700;
+    font-size: 14px;
+    min-width: 60px;
+    text-align: center;
+}
+
+.playerName {
+    font-weight: 600;
+    color: #2c3e50;
+    font-size: 16px;
+}
+
+/* ==================== POINTS DISTRIBUTION SECTION ==================== */
+.infoBox {
+    background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+    border-left: 4px solid #2196f3;
+    padding: 20px;
+    border-radius: 8px;
+    margin-bottom: 24px;
+}
+
+.infoBox h3 {
+    margin: 0 0 12px 0;
+    color: #1976d2;
+    font-size: 1.2rem;
+}
+
+.infoBox p {
+    margin: 8px 0;
+    color: #424242;
+    line-height: 1.6;
+}
+
+.infoBox strong {
+    color: #1565c0;
+}
+
+.pointsGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 20px;
+}
+
+.pointsInputGroup {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    background: white;
+    padding: 16px;
+    border-radius: 8px;
+    border: 2px solid #e0e0e0;
+    transition: all 0.2s ease;
+}
+
+.pointsInputGroup:hover {
+    border-color: #667eea;
+    box-shadow: 0 2px 8px rgba(102, 126, 234, 0.2);
+}
+
+.placementLabel {
+    font-weight: 600;
+    color: #2c3e50;
+    font-size: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.tiedNote {
+    font-size: 12px;
+    font-weight: 400;
+    color: #7f8c8d;
+    font-style: italic;
+}
+
+.pointsInput {
+    padding: 10px 12px;
+    border: 2px solid #ddd;
+    border-radius: 6px;
+    font-size: 16px;
+    font-weight: 600;
+    color: #2c3e50;
+    transition: all 0.2s ease;
+}
+
+.pointsInput:focus {
+    outline: none;
+    border-color: #667eea;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.pointsInput::placeholder {
+    color: #aaa;
+    font-weight: 400;
+}

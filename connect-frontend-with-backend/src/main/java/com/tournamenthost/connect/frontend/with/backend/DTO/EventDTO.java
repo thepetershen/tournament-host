@@ -10,5 +10,6 @@ import lombok.NoArgsConstructor;
 public class EventDTO {
     private String name;
     private int id;
+    private String eventType;
 
 }

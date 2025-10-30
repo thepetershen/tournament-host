@@ -16,6 +16,9 @@ function Navbar() {
                 <li className={styles.NavItem}>
                     <Link to="/tournament" className={styles.NavButton}>Tournaments</Link>
                 </li>
+                <li className={styles.NavItem}>
+                    <Link to="/leagues" className={styles.NavButton}>Leagues</Link>
+                </li>
             </ul>
         </nav>
     );

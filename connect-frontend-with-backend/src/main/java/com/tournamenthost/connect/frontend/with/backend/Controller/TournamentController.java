@@ -254,6 +254,16 @@ public class TournamentController {
                 EventDTO dto = new EventDTO();
                 dto.setId(event.getIndex());
                 dto.setName(event.getName());
+
+                // Set event type
+                if (event instanceof SingleElimEvent) {
+                    dto.setEventType("SINGLE_ELIM");
+                } else if (event instanceof DoubleElimEvent) {
+                    dto.setEventType("DOUBLE_ELIM");
+                } else if (event instanceof RoundRobinEvent) {
+                    dto.setEventType("ROUND_ROBIN");
+                }
+
                 eventDTOs.add(dto);
             }
             return ResponseEntity.ok(eventDTOs);

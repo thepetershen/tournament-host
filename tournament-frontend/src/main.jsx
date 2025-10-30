@@ -8,6 +8,9 @@ import SignUpPage from './Pages/TournamentPage/SignUpPage';
 import TournamentControl from "./Pages/TournamentControl/TournamentControl";
 import EventPage from "./Pages/Event/EventPage.jsx";
 import PlayerPage from "./Pages/Player/PlayerPage.jsx";
+import LeaguesPage from "./Pages/Leagues/LeaguesPage.jsx";
+import IndividualLeaguePage from "./Pages/Leagues/IndividualLeaguePage.jsx";
+import LeagueControlPanel from "./Pages/Leagues/LeagueControlPanel.jsx";
 import NotFoundPage from './Pages/NotFoundPage';
 import Layout from './Pages/Layout';
 import RegisterPage from './Pages/LoginAndRegistration/RegisterPage';
@@ -28,6 +31,9 @@ const router = createBrowserRouter([
       { path: "tournament/:tournamentId/control", element: <TournamentControl/>},
       { path: "tournament/:tournamentId/event/:eventIndex/draw", element: <EventPage/>},
       { path: "player/:playerId", element: <PlayerPage/>},
+      { path: "leagues", element: <LeaguesPage/>},
+      { path: "league/:leagueId", element: <IndividualLeaguePage/>},
+      { path: "league/:leagueId/control", element: <LeagueControlPanel/>},
       { path: "register", element: <RegisterPage/> },
       { path: "login-success", element: <LoginSuccessPage/> },
       { path: "login", element: <LoginPage/> }

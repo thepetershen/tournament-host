@@ -9,7 +9,12 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 
+import com.tournamenthost.connect.frontend.with.backend.DTO.LeagueDTO;
+import com.tournamenthost.connect.frontend.with.backend.DTO.LeaguePlayerRankingDTO;
+import com.tournamenthost.connect.frontend.with.backend.DTO.TournamentDTO;
+import com.tournamenthost.connect.frontend.with.backend.DTO.UserDTO;
 import com.tournamenthost.connect.frontend.with.backend.Model.League;
 import com.tournamenthost.connect.frontend.with.backend.Model.LeaguePlayerRanking;
 import com.tournamenthost.connect.frontend.with.backend.Model.Tournament;
@@ -22,6 +27,64 @@ public class LeagueController {
 
     @Autowired
     private LeagueService leagueService;
+
+    // ==================== DTO CONVERSION METHODS ====================
+
+    private UserDTO convertToUserDTO(User user) {
+        if (user == null) return null;
+        UserDTO dto = new UserDTO();
+        dto.setId(user.getId());
+        dto.setUsername(user.getUsername());
+        dto.setName(user.getName());
+        return dto;
+    }
+
+    private TournamentDTO convertToTournamentDTO(Tournament tournament) {
+        if (tournament == null) return null;
+        TournamentDTO dto = new TournamentDTO();
+        dto.setId(tournament.getId());
+        dto.setName(tournament.getName());
+        dto.setLocation(tournament.getLocation());
+        dto.setMessage(tournament.getMessage());
+        dto.setBegin(tournament.getBegin());
+        dto.setEnd(tournament.getEnd());
+        return dto;
+    }
+
+    private LeagueDTO convertToLeagueDTO(League league) {
+        if (league == null) return null;
+        LeagueDTO dto = new LeagueDTO();
+        dto.setId(league.getId());
+        dto.setName(league.getName());
+        dto.setOwner(convertToUserDTO(league.getOwner()));
+
+        // Convert authorized editors
+        List<UserDTO> editorDTOs = league.getAuthorizedEditors().stream()
+            .map(this::convertToUserDTO)
+            .collect(Collectors.toList());
+        dto.setAuthorizedEditors(editorDTOs);
+
+        // Convert tournaments
+        List<TournamentDTO> tournamentDTOs = league.getTournaments().stream()
+            .map(this::convertToTournamentDTO)
+            .collect(Collectors.toList());
+        dto.setTournaments(tournamentDTOs);
+
+        return dto;
+    }
+
+    private LeaguePlayerRankingDTO convertToRankingDTO(LeaguePlayerRanking ranking) {
+        if (ranking == null) return null;
+        LeaguePlayerRankingDTO dto = new LeaguePlayerRankingDTO();
+        dto.setId(ranking.getId());
+        dto.setPlayer(convertToUserDTO(ranking.getPlayer()));
+        dto.setRank(ranking.getRank());
+        dto.setPoints(ranking.getPoints());
+        dto.setMatchesPlayed(ranking.getMatchesPlayed());
+        dto.setMatchesWon(ranking.getMatchesWon());
+        dto.setMatchesLost(ranking.getMatchesLost());
+        return dto;
+    }
 
     // ==================== LEAGUE CRUD OPERATIONS ====================
 
@@ -40,7 +103,8 @@ public class LeagueController {
             }
 
             League league = leagueService.createLeague(name, user);
-            return ResponseEntity.status(HttpStatus.CREATED).body(league);
+            LeagueDTO dto = convertToLeagueDTO(league);
+            return ResponseEntity.status(HttpStatus.CREATED).body(dto);
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(e.getMessage());
         }
@@ -54,7 +118,10 @@ public class LeagueController {
     public ResponseEntity<?> getAllLeagues() {
         try {
             List<League> leagues = leagueService.getAllLeagues();
-            return ResponseEntity.ok(leagues);
+            List<LeagueDTO> dtos = leagues.stream()
+                .map(this::convertToLeagueDTO)
+                .collect(Collectors.toList());
+            return ResponseEntity.ok(dtos);
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(e.getMessage());
         }
@@ -68,7 +135,8 @@ public class LeagueController {
     public ResponseEntity<?> getLeague(@PathVariable Long id) {
         try {
             League league = leagueService.getLeague(id);
-            return ResponseEntity.ok(league);
+            LeagueDTO dto = convertToLeagueDTO(league);
+            return ResponseEntity.ok(dto);
         } catch (IllegalArgumentException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
         }
@@ -90,7 +158,8 @@ public class LeagueController {
             }
 
             League league = leagueService.updateLeagueName(id, newName, user);
-            return ResponseEntity.ok(league);
+            LeagueDTO dto = convertToLeagueDTO(league);
+            return ResponseEntity.ok(dto);
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(e.getMessage());
         }
@@ -156,7 +225,10 @@ public class LeagueController {
     public ResponseEntity<?> getLeagueTournaments(@PathVariable Long leagueId) {
         try {
             Set<Tournament> tournaments = leagueService.getLeagueTournaments(leagueId);
-            return ResponseEntity.ok(tournaments);
+            List<TournamentDTO> dtos = tournaments.stream()
+                .map(this::convertToTournamentDTO)
+                .collect(Collectors.toList());
+            return ResponseEntity.ok(dtos);
         } catch (IllegalArgumentException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
         }
@@ -175,7 +247,10 @@ public class LeagueController {
         try {
             leagueService.verifyEditPermission(leagueId, user);
             List<LeaguePlayerRanking> rankings = leagueService.recalculateLeagueRankings(leagueId);
-            return ResponseEntity.ok(rankings);
+            List<LeaguePlayerRankingDTO> dtos = rankings.stream()
+                .map(this::convertToRankingDTO)
+                .collect(Collectors.toList());
+            return ResponseEntity.ok(dtos);
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(e.getMessage());
         }
@@ -189,7 +264,10 @@ public class LeagueController {
     public ResponseEntity<?> getLeagueRankings(@PathVariable Long leagueId) {
         try {
             List<LeaguePlayerRanking> rankings = leagueService.getLeagueRankings(leagueId);
-            return ResponseEntity.ok(rankings);
+            List<LeaguePlayerRankingDTO> dtos = rankings.stream()
+                .map(this::convertToRankingDTO)
+                .collect(Collectors.toList());
+            return ResponseEntity.ok(dtos);
         } catch (IllegalArgumentException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
         }
@@ -257,7 +335,10 @@ public class LeagueController {
     public ResponseEntity<?> getAllLeaguePlayers(@PathVariable Long leagueId) {
         try {
             Set<User> players = leagueService.getAllLeaguePlayers(leagueId);
-            return ResponseEntity.ok(players);
+            List<UserDTO> dtos = players.stream()
+                .map(this::convertToUserDTO)
+                .collect(Collectors.toList());
+            return ResponseEntity.ok(dtos);
         } catch (IllegalArgumentException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
         }

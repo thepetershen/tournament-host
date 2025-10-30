@@ -22,6 +22,8 @@ function TournamentControl() {
   const [matches, setMatches] = useState([]);
   const [seeds, setSeeds] = useState({});
   const [editors, setEditors] = useState([]);
+  const [manualSeeds, setManualSeeds] = useState({});
+  const [pointsDistribution, setPointsDistribution] = useState({});
 
   // Modal state
   const [showCreateEventModal, setShowCreateEventModal] = useState(false);
@@ -84,7 +86,23 @@ function TournamentControl() {
   // Fetch event-specific data when event is selected
   useEffect(() => {
     const fetchEventData = async () => {
-      if (!selectedEvent) return;
+      if (!selectedEvent) {
+        // Clear event-specific state when no event is selected
+        setPendingRegistrations([]);
+        setEventPlayers([]);
+        setMatches([]);
+        setSeeds({});
+        setManualSeeds({});
+        return;
+      }
+
+      // Clear stale data before fetching new event data
+      setPendingRegistrations([]);
+      setEventPlayers([]);
+      setMatches([]);
+      setSeeds({});
+      setManualSeeds({});
+      setPointsDistribution({});
 
       try {
         // Fetch pending registrations
@@ -102,6 +120,17 @@ function TournamentControl() {
         // Fetch seeds
         const seedsRes = await authAxios.get(`/api/tournaments/${tournamentId}/event/${selectedEvent.id}/seeds`);
         setSeeds(seedsRes.data || {});
+
+        // Fetch points distribution
+        try {
+          const pointsRes = await authAxios.get(`/api/tournaments/${tournamentId}/event/${selectedEvent.id}/points-distribution`);
+          if (pointsRes.data) {
+            setPointsDistribution(pointsRes.data.pointsMap || {});
+          }
+        } catch (err) {
+          // Points distribution might not exist yet, which is fine
+          setPointsDistribution({});
+        }
       } catch (err) {
         console.error('Error fetching event data:', err);
       }
@@ -113,6 +142,79 @@ function TournamentControl() {
   const showMessage = (type, text) => {
     setMessage({ type, text });
     setTimeout(() => setMessage({ type: '', text: '' }), 5000);
+  };
+
+  // Helper function to get expected placements based on event type and player count
+  const getExpectedPlacements = () => {
+    if (!selectedEvent || !eventPlayers.length) return [];
+
+    const playerCount = eventPlayers.length;
+    const eventType = selectedEvent.eventType;
+
+    if (eventType === 'ROUND_ROBIN') {
+      // Round Robin: every placement from 1 to playerCount
+      return Array.from({ length: playerCount }, (_, i) => String(i + 1));
+    } else if (eventType === 'SINGLE_ELIM') {
+      // Single Elim: 1st, 2nd, 3rd (tied), 5th (tied), 9th (tied), etc.
+      // Based on backend logic: finals loser = 2nd, semis losers = 3rd, quarters = 5th, etc.
+      const placements = ['1', '2']; // Winner and finalist
+      const totalRounds = Math.ceil(Math.log2(playerCount));
+
+      // Add placements for rounds before finals (semifinals and earlier)
+      for (let roundIndex = totalRounds - 2; roundIndex >= 0; roundIndex--) {
+        if (roundIndex === totalRounds - 2) {
+          // Semifinals losers get 3rd place
+          placements.push('3');
+        } else {
+          // Earlier rounds: quarterfinalists = 5th, round of 16 = 9th, etc.
+          // Formula: 2^(totalRounds - roundIndex - 1) + 1
+          const placement = String(Math.pow(2, totalRounds - roundIndex - 1) + 1);
+          placements.push(placement);
+        }
+      }
+
+      return placements;
+    } else if (eventType === 'DOUBLE_ELIM') {
+      // Double Elim: Similar to single elim but more granular placements
+      const placements = ['1', '2', '3', '4'];
+      let remaining = playerCount - 4;
+      let nextPlacement = 5;
+
+      while (remaining > 0) {
+        placements.push(String(nextPlacement));
+        const eliminated = Math.max(1, Math.ceil(remaining / 2));
+        remaining -= eliminated;
+        nextPlacement += eliminated;
+      }
+
+      return placements;
+    }
+
+    return [];
+  };
+
+  const handlePointsDistributionChange = (placement, value) => {
+    setPointsDistribution(prev => ({
+      ...prev,
+      [placement]: value === '' ? undefined : parseInt(value)
+    }));
+  };
+
+  const handleSavePointsDistribution = async () => {
+    try {
+      // Filter out undefined values
+      const filteredPoints = Object.fromEntries(
+        Object.entries(pointsDistribution).filter(([_, v]) => v !== undefined)
+      );
+
+      await authAxios.post(
+        `/api/tournaments/${tournamentId}/event/${selectedEvent.id}/points-distribution`,
+        { pointsMap: filteredPoints }
+      );
+      showMessage('success', 'Points distribution saved successfully!');
+    } catch (err) {
+      showMessage('error', err.response?.data || 'Failed to save points distribution');
+    }
   };
 
   const refreshEvents = async () => {
@@ -340,6 +442,71 @@ function TournamentControl() {
     }
   };
 
+  // Seeding management
+  const handleSeedChange = (userId, seedValue) => {
+    setManualSeeds(prev => {
+      const updated = { ...prev };
+      if (seedValue === '' || seedValue === null) {
+        delete updated[userId];
+      } else {
+        updated[userId] = parseInt(seedValue);
+      }
+      return updated;
+    });
+  };
+
+  const handleSaveSeeds = async () => {
+    try {
+      // Validate seeds
+      const seedValues = Object.values(manualSeeds);
+      const uniqueSeeds = new Set(seedValues);
+
+      if (seedValues.length !== uniqueSeeds.size) {
+        showMessage('error', 'Duplicate seed numbers are not allowed');
+        return;
+      }
+
+      // Check for sequential seeds starting from 1
+      const sortedSeeds = [...seedValues].sort((a, b) => a - b);
+      for (let i = 0; i < sortedSeeds.length; i++) {
+        if (sortedSeeds[i] !== i + 1) {
+          showMessage('error', 'Seeds must be sequential starting from 1 (e.g., 1, 2, 3, 4)');
+          return;
+        }
+      }
+
+      await authAxios.post(
+        `/api/tournaments/${tournamentId}/event/${selectedEvent.id}/seeds/manual`,
+        { playerSeeds: manualSeeds }
+      );
+
+      showMessage('success', 'Seeds saved successfully!');
+
+      // Refresh seeds from server
+      const seedsRes = await authAxios.get(`/api/tournaments/${tournamentId}/event/${selectedEvent.id}/seeds`);
+      setSeeds(seedsRes.data || {});
+      setManualSeeds({});
+    } catch (err) {
+      showMessage('error', err.response?.data || 'Failed to save seeds');
+    }
+  };
+
+  const handleClearSeeds = async () => {
+    if (!window.confirm('Clear all seeds? This cannot be undone.')) return;
+
+    try {
+      await authAxios.delete(`/api/tournaments/${tournamentId}/event/${selectedEvent.id}/seeds`);
+      showMessage('success', 'Seeds cleared successfully!');
+
+      // Refresh seeds from server
+      const seedsRes = await authAxios.get(`/api/tournaments/${tournamentId}/event/${selectedEvent.id}/seeds`);
+      setSeeds(seedsRes.data || {});
+      setManualSeeds({});
+    } catch (err) {
+      showMessage('error', err.response?.data || 'Failed to clear seeds');
+    }
+  };
+
   if (loading) {
     return <div className={styles.loading}>Loading tournament control panel...</div>;
   }
@@ -415,6 +582,13 @@ function TournamentControl() {
               disabled={!selectedEvent}
             >
               Matches
+            </button>
+            <button
+              className={`${styles.sidebarButton} ${activeSection === 'points' ? styles.active : ''}`}
+              onClick={() => setActiveSection('points')}
+              disabled={!selectedEvent}
+            >
+              Points Distribution
             </button>
             <button
               className={`${styles.sidebarButton} ${activeSection === 'editors' ? styles.active : ''}`}
@@ -683,11 +857,84 @@ function TournamentControl() {
           {/* Seeding Section */}
           {activeSection === 'seeding' && selectedEvent && (
             <div className={styles.section}>
-              <h2 className={styles.sectionTitle}>Seeding - {selectedEvent.name}</h2>
-              <div className={styles.infoCard}>
-                <p>Seeding management coming soon...</p>
-                <p>Current seeds: {Object.keys(seeds).length}</p>
-              </div>
+              <h2 className={styles.sectionTitle}>Manual Seeding - {selectedEvent.name}</h2>
+
+              {selectedEvent.initialized ? (
+                <div className={styles.infoCard}>
+                  <p style={{ color: '#f39c12', marginBottom: '10px' }}>
+                    WARNING: Event is initialized. Seeds cannot be changed after initialization.
+                  </p>
+                  <h3>Current Seeds:</h3>
+                  {Object.keys(seeds).length > 0 ? (
+                    <div className={styles.seedList}>
+                      {eventPlayers
+                        .filter(player => seeds[player.id])
+                        .sort((a, b) => seeds[a.id] - seeds[b.id])
+                        .map(player => (
+                          <div key={player.id} className={styles.seedItem}>
+                            <span className={styles.seedNumber}>Seed {seeds[player.id]}</span>
+                            <span className={styles.playerName}>{player.username}</span>
+                          </div>
+                        ))}
+                    </div>
+                  ) : (
+                    <p>No seeds set for this event.</p>
+                  )}
+                </div>
+              ) : (
+                <>
+                  <div className={styles.infoCard} style={{ marginBottom: '20px' }}>
+                    <p>
+                      Assign seed numbers to players. Seeds must be sequential starting from 1 (e.g., 1, 2, 3, 4).
+                      Leave blank for unseeded players.
+                    </p>
+                    <p style={{ marginTop: '10px' }}>
+                      <strong>Current saved seeds: {Object.keys(seeds).length}</strong>
+                    </p>
+                  </div>
+
+                  <div className={styles.seedingControls}>
+                    <button onClick={handleSaveSeeds} className={styles.primaryButton}>
+                      Save Seeds
+                    </button>
+                    {Object.keys(seeds).length > 0 && (
+                      <button onClick={handleClearSeeds} className={styles.dangerButton}>
+                        Clear All Seeds
+                      </button>
+                    )}
+                  </div>
+
+                  <div className={styles.playerSeedList}>
+                    {eventPlayers.length === 0 ? (
+                      <p>No players registered for this event yet.</p>
+                    ) : (
+                      eventPlayers.map(player => (
+                          <div key={player.id} className={styles.playerSeedRow}>
+                            <div className={styles.playerInfo}>
+                              <span className={styles.playerUsername}>{player.username}</span>
+                              {player.name && (
+                                <span className={styles.playerRealName}>({player.name})</span>
+                              )}
+                            </div>
+                            <div className={styles.seedInputContainer}>
+                              <label htmlFor={`seed-${player.id}`}>Seed:</label>
+                              <input
+                                id={`seed-${player.id}`}
+                                type="number"
+                                min="1"
+                                max={eventPlayers.length}
+                                value={manualSeeds[player.id] || ''}
+                                onChange={(e) => handleSeedChange(player.id, e.target.value)}
+                                placeholder={seeds[player.id] ? `Current: ${seeds[player.id]}` : 'None'}
+                                className={styles.seedInput}
+                              />
+                            </div>
+                          </div>
+                        ))
+                    )}
+                  </div>
+                </>
+              )}
             </div>
           )}
 
@@ -726,6 +973,64 @@ function TournamentControl() {
                           Record Result
                         </button>
                       )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Points Distribution Section */}
+          {activeSection === 'points' && selectedEvent && (
+            <div className={styles.section}>
+              <div className={styles.sectionHeader}>
+                <h2 className={styles.sectionTitle}>Points Distribution for {selectedEvent.name}</h2>
+                <button
+                  className={styles.primaryButton}
+                  onClick={handleSavePointsDistribution}
+                >
+                  Save Points Distribution
+                </button>
+              </div>
+
+              <div className={styles.infoBox}>
+                <h3>Event Type: {selectedEvent.eventType}</h3>
+                <p>
+                  {selectedEvent.eventType === 'SINGLE_ELIM' &&
+                    'Single Elimination: Set points for 1st, 2nd, 3rd (semifinalists), 5th (quarterfinalists), etc.'}
+                  {selectedEvent.eventType === 'DOUBLE_ELIM' &&
+                    'Double Elimination: Set points for each unique finish position (1st, 2nd, 3rd, 4th, 5th, etc.)'}
+                  {selectedEvent.eventType === 'ROUND_ROBIN' &&
+                    'Round Robin: Set points for each placement from 1st to last place.'}
+                </p>
+                <p><strong>Note:</strong> Points are only awarded when the event is complete.</p>
+              </div>
+
+              {eventPlayers.length === 0 ? (
+                <div className={styles.emptyState}>
+                  <p>No players in this event yet. Add players to configure points distribution.</p>
+                </div>
+              ) : (
+                <div className={styles.pointsGrid}>
+                  {getExpectedPlacements().map(placement => (
+                    <div key={placement} className={styles.pointsInputGroup}>
+                      <label className={styles.placementLabel}>
+                        {placement === '1' ? '1st Place' :
+                         placement === '2' ? '2nd Place' :
+                         placement === '3' ? '3rd Place' :
+                         `${placement}th Place`}
+                        {selectedEvent.eventType !== 'ROUND_ROBIN' && parseInt(placement) > 2 && (
+                          <span className={styles.tiedNote}>(tied)</span>
+                        )}
+                      </label>
+                      <input
+                        type="number"
+                        className={styles.pointsInput}
+                        value={pointsDistribution[placement] || ''}
+                        onChange={(e) => handlePointsDistributionChange(placement, e.target.value)}
+                        placeholder="Enter points"
+                        min="0"
+                      />
                     </div>
                   ))}
                 </div>

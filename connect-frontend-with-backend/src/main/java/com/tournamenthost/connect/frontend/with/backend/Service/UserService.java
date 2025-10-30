@@ -92,7 +92,18 @@ public class UserService {
                 List<Match> matches = entry.getValue();
 
                 // Create EventDTO
-                EventDTO eventDTO = new EventDTO(event.getName(), event.getIndex());
+                EventDTO eventDTO = new EventDTO();
+                eventDTO.setName(event.getName());
+                eventDTO.setId(event.getIndex());
+
+                // Set event type
+                if (event instanceof com.tournamenthost.connect.frontend.with.backend.Model.Event.SingleElimEvent) {
+                    eventDTO.setEventType("SINGLE_ELIM");
+                } else if (event instanceof com.tournamenthost.connect.frontend.with.backend.Model.Event.DoubleElimEvent) {
+                    eventDTO.setEventType("DOUBLE_ELIM");
+                } else if (event instanceof com.tournamenthost.connect.frontend.with.backend.Model.Event.RoundRobinEvent) {
+                    eventDTO.setEventType("ROUND_ROBIN");
+                }
 
                 // Create MatchDTOs
                 List<MatchDTO> matchDTOs = matches.stream()
