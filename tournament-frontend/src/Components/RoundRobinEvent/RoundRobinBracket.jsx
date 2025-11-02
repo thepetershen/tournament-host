@@ -19,22 +19,45 @@ function RoundRobinBracket({ draw }) {
         );
     }
 
-    // Extract players from draw (first element of each row)
-    const players = draw.map(row => row[0]);
+    // Helper functions to support both players and teams
+    const getParticipantId = (participant) => {
+        return participant?.id;
+    };
+
+    const getParticipant = (match, side) => {
+        if (side === 'A') {
+            return match.teamA || match.playerA;
+        }
+        return match.teamB || match.playerB;
+    };
+
+    const getWinner = (match) => {
+        return match.winnerTeam || match.winner;
+    };
+
+    // Extract players/teams from draw (first element of each row)
+    const participants = draw.map(row => row[0]);
 
     // Build a lookup map for matches
     // Key: "playerId1-playerId2" (sorted to handle both directions)
     const matchMap = new Map();
 
     draw.forEach(row => {
-        const player = row[0];
-        const matches = row.slice(1); // Everything after the user is a match
+        const participant = row[0];
+        const matches = row.slice(1); // Everything after the participant is a match
 
         matches.forEach(match => {
-            if (match && match.playerA && match.playerB) {
-                // Create consistent key regardless of player order
-                const key1 = `${player.id}-${match.playerA.id === player.id ? match.playerB.id : match.playerA.id}`;
-                const key2 = `${match.playerA.id === player.id ? match.playerB.id : match.playerA.id}-${player.id}`;
+            const participantA = getParticipant(match, 'A');
+            const participantB = getParticipant(match, 'B');
+
+            if (match && participantA && participantB) {
+                const participantAId = getParticipantId(participantA);
+                const participantBId = getParticipantId(participantB);
+                const participantId = getParticipantId(participant);
+
+                // Create consistent key regardless of participant order
+                const key1 = `${participantId}-${participantAId === participantId ? participantBId : participantAId}`;
+                const key2 = `${participantAId === participantId ? participantBId : participantAId}-${participantId}`;
 
                 matchMap.set(key1, match);
                 matchMap.set(key2, match);
@@ -42,20 +65,24 @@ function RoundRobinBracket({ draw }) {
         });
     });
 
-    const getMatch = (player1, player2) => {
-        const key = `${player1.id}-${player2.id}`;
+    const getMatch = (participant1, participant2) => {
+        const key = `${participant1.id}-${participant2.id}`;
         return matchMap.get(key);
     };
 
-    const renderMatchCell = (rowPlayer, colPlayer, rowIndex, colIndex) => {
-        // Diagonal cells (player vs themselves)
+    const getParticipantName = (participant) => {
+        return participant.teamName || participant.username || 'Participant';
+    };
+
+    const renderMatchCell = (rowParticipant, colParticipant, rowIndex, colIndex) => {
+        // Diagonal cells (participant vs themselves)
         if (rowIndex === colIndex) {
             return (
                 <div key={`${rowIndex}-${colIndex}`} className={styles.disabledCell} />
             );
         }
 
-        const match = getMatch(rowPlayer, colPlayer);
+        const match = getMatch(rowParticipant, colParticipant);
 
         // No match found
         if (!match) {
@@ -67,9 +94,12 @@ function RoundRobinBracket({ draw }) {
         }
 
         // Determine scores for this specific match cell perspective
-        // Row player is the perspective we're showing from
-        const isRowPlayerA = match.playerA.id === rowPlayer.id;
-        const didRowPlayerWin = match.winner && match.winner.id === rowPlayer.id;
+        // Row participant is the perspective we're showing from
+        const participantA = getParticipant(match, 'A');
+        const participantB = getParticipant(match, 'B');
+        const isRowParticipantA = participantA && getParticipantId(participantA) === getParticipantId(rowParticipant);
+        const winner = getWinner(match);
+        const didRowParticipantWin = winner && getParticipantId(winner) === getParticipantId(rowParticipant);
 
         // Check if match has scores (completed or in progress)
         // Backend returns score as [scoreA, scoreB] for Round Robin
@@ -77,8 +107,8 @@ function RoundRobinBracket({ draw }) {
 
         // Determine background color based on win/loss
         let cellClassName = styles.matchCell;
-        if (match.winner) {
-            cellClassName = didRowPlayerWin ? `${styles.matchCell} ${styles.winCell}` : `${styles.matchCell} ${styles.lossCell}`;
+        if (winner) {
+            cellClassName = didRowParticipantWin ? `${styles.matchCell} ${styles.winCell}` : `${styles.matchCell} ${styles.lossCell}`;
         }
 
         return (
@@ -90,15 +120,15 @@ function RoundRobinBracket({ draw }) {
                     <>
                         <div className={styles.scoreDisplay}>
                             <span className={styles.scoreNumber}>
-                                {isRowPlayerA ? match.score[0] : match.score[1]}
+                                {isRowParticipantA ? match.score[0] : match.score[1]}
                             </span>
                             <span className={styles.scoreSeparator}>-</span>
                             <span className={styles.scoreNumber}>
-                                {isRowPlayerA ? match.score[1] : match.score[0]}
+                                {isRowParticipantA ? match.score[1] : match.score[0]}
                             </span>
                         </div>
-                        <div className={`${styles.matchStatus} ${match.winner ? styles.statusComplete : styles.statusInProgress}`}>
-                            {match.winner ? (didRowPlayerWin ? 'W' : 'L') : 'In Progress'}
+                        <div className={`${styles.matchStatus} ${winner ? styles.statusComplete : styles.statusInProgress}`}>
+                            {winner ? (didRowParticipantWin ? 'W' : 'L') : 'In Progress'}
                         </div>
                     </>
                 ) : (
@@ -114,8 +144,8 @@ function RoundRobinBracket({ draw }) {
     };
 
     // Set up grid template for CSS Grid
-    const gridTemplateColumns = `180px repeat(${players.length}, 180px)`;
-    const gridTemplateRows = `60px repeat(${players.length}, 60px)`;
+    const gridTemplateColumns = `180px repeat(${participants.length}, 180px)`;
+    const gridTemplateRows = `60px repeat(${participants.length}, 60px)`;
 
     return (
         <div className={styles.roundRobinContainer}>
@@ -128,27 +158,27 @@ function RoundRobinBracket({ draw }) {
             >
                 {/* Top-left corner cell */}
                 <div className={styles.cornerCell}>
-                    Players
+                    Participants
                 </div>
 
-                {/* Top header row - player names */}
-                {players.map((player, index) => (
+                {/* Top header row - participant names */}
+                {participants.map((participant, index) => (
                     <div key={`header-col-${index}`} className={styles.headerCell}>
-                        {player.username}
+                        {getParticipantName(participant)}
                     </div>
                 ))}
 
                 {/* Each row */}
-                {players.map((rowPlayer, rowIndex) => (
+                {participants.map((rowParticipant, rowIndex) => (
                     <React.Fragment key={`row-${rowIndex}`}>
-                        {/* Left header column - player name */}
+                        {/* Left header column - participant name */}
                         <div className={styles.headerCell}>
-                            {rowPlayer.username}
+                            {getParticipantName(rowParticipant)}
                         </div>
 
                         {/* Match cells */}
-                        {players.map((colPlayer, colIndex) =>
-                            renderMatchCell(rowPlayer, colPlayer, rowIndex, colIndex)
+                        {participants.map((colParticipant, colIndex) =>
+                            renderMatchCell(rowParticipant, colParticipant, rowIndex, colIndex)
                         )}
                     </React.Fragment>
                 ))}

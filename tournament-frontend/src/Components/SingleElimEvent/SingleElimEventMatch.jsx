@@ -3,16 +3,33 @@ import {useContext} from "react";
 import {SpacingContext} from './SingleElimBracket.jsx';
 
 
-function SingleElimEventMatch({ playerTop = "BYE", playerBottom = "BYE", winner, arrOfScore = [], nextMatch, prevMatch, matchId, isCompleted}) {
+function SingleElimEventMatch({ playerTop = "BYE", playerBottom = "BYE", winner, arrOfScore = [], nextMatch, prevMatch, matchId, isCompleted, matchType = "SINGLES"}) {
 
 
     const MATCH_SPACING = useContext(SpacingContext);
 
+    // Helper function to format team/player names
+    const formatTeamName = (team) => {
+        if (!team || team === "BYE") return "BYE";
+        if (typeof team === 'string') return team;
+        if (team.teamName) return team.teamName; // Use pre-formatted team name from backend
+        if (team.player1 && team.player2) {
+            return `${team.player1.username} / ${team.player2.username}`;
+        }
+        if (team.player1) return team.player1.username;
+        if (team.username) return team.username; // Fallback for User objects
+        return "TBD";
+    };
+
+    const topDisplayName = formatTeamName(playerTop);
+    const bottomDisplayName = formatTeamName(playerBottom);
+    const winnerDisplayName = formatTeamName(winner);
+
     // Determine if players are winners or losers
-    const isTopWinner = winner && winner === playerTop;
-    const isBottomWinner = winner && winner === playerBottom;
-    const isTopLoser = winner && winner !== playerTop && playerTop !== "BYE";
-    const isBottomLoser = winner && winner !== playerBottom && playerBottom !== "BYE";
+    const isTopWinner = winner && winnerDisplayName === topDisplayName;
+    const isBottomWinner = winner && winnerDisplayName === bottomDisplayName;
+    const isTopLoser = winner && winnerDisplayName !== topDisplayName && topDisplayName !== "BYE";
+    const isBottomLoser = winner && winnerDisplayName !== bottomDisplayName && bottomDisplayName !== "BYE";
 
     // Convert flat array [6, 4, 7, 5] to pairs [[6, 4], [7, 5]]
     const scorePairs = [];
@@ -62,10 +79,11 @@ function SingleElimEventMatch({ playerTop = "BYE", playerBottom = "BYE", winner,
                         fontWeight: isTopWinner ? "bold" : "normal",
                         color: isTopWinner ? "#28a745" : (isTopLoser ? "#dc3545" : "#333"),
                         backgroundColor: isTopWinner ? "rgba(40, 167, 69, 0.1)" : (isTopLoser ? "rgba(220, 53, 69, 0.05)" : "transparent"),
-                        transition: "all 0.3s ease"
+                        transition: "all 0.3s ease",
+                        fontSize: matchType === "DOUBLES" ? "11px" : "14px"
                     }}
                 >
-                    {playerTop}
+                    {topDisplayName}
                 </div>
                 <div
                     className={styles.matchBottom}
@@ -73,10 +91,11 @@ function SingleElimEventMatch({ playerTop = "BYE", playerBottom = "BYE", winner,
                         fontWeight: isBottomWinner ? "bold" : "normal",
                         color: isBottomWinner ? "#28a745" : (isBottomLoser ? "#dc3545" : "#333"),
                         backgroundColor: isBottomWinner ? "rgba(40, 167, 69, 0.1)" : (isBottomLoser ? "rgba(220, 53, 69, 0.05)" : "transparent"),
-                        transition: "all 0.3s ease"
+                        transition: "all 0.3s ease",
+                        fontSize: matchType === "DOUBLES" ? "11px" : "14px"
                     }}
                 >
-                    {playerBottom}
+                    {bottomDisplayName}
                 </div>
                 <div className={styles.scoreTopContainer}>
                     {scoreListTop}

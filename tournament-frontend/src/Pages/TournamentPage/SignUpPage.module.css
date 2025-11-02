@@ -269,4 +269,60 @@
     .backButton {
         width: 100%;
     }
+
+    .partnerInput {
+        margin-top: 12px;
+    }
+}
+
+/* Partner input styles */
+.eventBadge {
+    display: inline-block;
+    margin-left: 12px;
+    padding: 4px 12px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    background-color: #667eea;
+    color: white;
+    border-radius: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.partnerInput {
+    margin-top: 16px;
+    padding: 16px;
+    background-color: #f9f9f9;
+    border-radius: 8px;
+    border: 1px solid #e0e0e0;
+}
+
+.partnerLabel {
+    display: block;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #555;
+    margin-bottom: 8px;
+}
+
+.partnerInputField {
+    width: 100%;
+    padding: 10px 12px;
+    font-size: 1rem;
+    border: 2px solid #ddd;
+    border-radius: 6px;
+    transition: border-color 0.2s ease;
+    box-sizing: border-box;
+}
+
+.partnerInputField:focus {
+    outline: none;
+    border-color: #667eea;
+}
+
+.partnerHint {
+    margin: 8px 0 0 0;
+    font-size: 0.85rem;
+    color: #888;
+    font-style: italic;
 }

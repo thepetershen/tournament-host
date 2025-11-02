@@ -7,6 +7,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import com.tournamenthost.connect.frontend.with.backend.Model.MatchType;
 import com.tournamenthost.connect.frontend.with.backend.Model.Tournament;
 import com.tournamenthost.connect.frontend.with.backend.Model.User;
 
@@ -90,12 +91,67 @@ public abstract class BaseEvent implements Event {
         this.initialized =false;
     }
 
+    // Match configuration: Singles vs Doubles
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private MatchType matchType = MatchType.SINGLES;
+
+    // Number of games per match (e.g., 1 for single game, 3 for best-of-3, 5 for best-of-5)
+    @Column(nullable = false)
+    private int gamesPerMatch = 1;
+
+    // Number of games required to win the match (e.g., 1 for single game, 2 for best-of-3, 3 for best-of-5)
+    @Column(nullable = false)
+    private int gamesRequiredToWin = 1;
+
+    public MatchType getMatchType() {
+        return matchType;
+    }
+
+    public void setMatchType(MatchType matchType) {
+        if (this.initialized) {
+            throw new IllegalStateException("Cannot change match type after event has been initialized");
+        }
+        this.matchType = matchType;
+    }
+
+    public int getGamesPerMatch() {
+        return gamesPerMatch;
+    }
+
+    public void setGamesPerMatch(int gamesPerMatch) {
+        if (this.initialized) {
+            throw new IllegalStateException("Cannot change games per match after event has been initialized");
+        }
+        this.gamesPerMatch = gamesPerMatch;
+        // Auto-calculate gamesRequiredToWin based on gamesPerMatch
+        this.gamesRequiredToWin = (gamesPerMatch / 2) + 1;
+    }
+
+    public int getGamesRequiredToWin() {
+        return gamesRequiredToWin;
+    }
+
+    public void setGamesRequiredToWin(int gamesRequiredToWin) {
+        if (this.initialized) {
+            throw new IllegalStateException("Cannot change games required to win after event has been initialized");
+        }
+        this.gamesRequiredToWin = gamesRequiredToWin;
+    }
+
     // Seeding system: Maps User ID to their seed number (1 = first seed, 2 = second seed, etc.)
     @ElementCollection
     @CollectionTable(name = "event_seeds", joinColumns = @JoinColumn(name = "event_id"))
     @MapKeyColumn(name = "user_id")
     @Column(name = "seed_number")
     private Map<Long, Integer> playerSeeds;
+
+    // Team seeding system: Maps Team ID to their seed number (for doubles events)
+    @ElementCollection
+    @CollectionTable(name = "event_team_seeds", joinColumns = @JoinColumn(name = "event_id"))
+    @MapKeyColumn(name = "team_id")
+    @Column(name = "seed_number")
+    private Map<Long, Integer> teamSeeds;
 
     public Map<Long, Integer> getPlayerSeeds() {
         return playerSeeds;
@@ -117,6 +173,28 @@ public abstract class BaseEvent implements Event {
 
     public Integer getPlayerSeed(Long userId) {
         return playerSeeds.get(userId);
+    }
+
+    public Map<Long, Integer> getTeamSeeds() {
+        return teamSeeds;
+    }
+
+    public void setTeamSeeds(Map<Long, Integer> teamSeeds) {
+        if (this.initialized) {
+            throw new IllegalStateException("Cannot set seeds after event has been initialized");
+        }
+        this.teamSeeds = teamSeeds;
+    }
+
+    public void setTeamSeed(Long teamId, Integer seed) {
+        if (this.initialized) {
+            throw new IllegalStateException("Cannot set seeds after event has been initialized");
+        }
+        this.teamSeeds.put(teamId, seed);
+    }
+
+    public Integer getTeamSeed(Long teamId) {
+        return teamSeeds.get(teamId);
     }
 
     public boolean isPlayerSeeded(Long userId) {
@@ -161,6 +239,7 @@ public abstract class BaseEvent implements Event {
         this.name = name;
         this.players = (players != null) ? players : new ArrayList<>();
         this.playerSeeds = new HashMap<>();
+        this.teamSeeds = new HashMap<>();
         this.registrations = new ArrayList<>();
         this.tournament = tournament;
         this.index = index;

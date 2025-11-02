@@ -9,6 +9,7 @@ import com.tournamenthost.connect.frontend.with.backend.DTO.TournamentDTO;
 import com.tournamenthost.connect.frontend.with.backend.DTO.TournamentRequest;
 import com.tournamenthost.connect.frontend.with.backend.DTO.TournamentUpdateRequest;
 import com.tournamenthost.connect.frontend.with.backend.DTO.UserDTO;
+import com.tournamenthost.connect.frontend.with.backend.DTO.TeamDTO;
 import com.tournamenthost.connect.frontend.with.backend.DTO.UserGetRequest;
 import com.tournamenthost.connect.frontend.with.backend.DTO.PointsDistributionRequest;
 import com.tournamenthost.connect.frontend.with.backend.DTO.PointsDistributionDTO;
@@ -17,9 +18,14 @@ import com.tournamenthost.connect.frontend.with.backend.DTO.AutoSeedingRequest;
 import com.tournamenthost.connect.frontend.with.backend.DTO.SeededUserDTO;
 import com.tournamenthost.connect.frontend.with.backend.DTO.EventRegistrationDTO;
 import com.tournamenthost.connect.frontend.with.backend.DTO.ApproveRegistrationsRequest;
+import com.tournamenthost.connect.frontend.with.backend.DTO.EventMatchConfigRequest;
+import com.tournamenthost.connect.frontend.with.backend.DTO.EventSignupRequest;
+import com.tournamenthost.connect.frontend.with.backend.DTO.CreateTeamRequest;
+import com.tournamenthost.connect.frontend.with.backend.DTO.GameDTO;
 import com.tournamenthost.connect.frontend.with.backend.Model.Match;
 import com.tournamenthost.connect.frontend.with.backend.Model.Tournament;
 import com.tournamenthost.connect.frontend.with.backend.Model.User;
+import com.tournamenthost.connect.frontend.with.backend.Model.Team;
 import com.tournamenthost.connect.frontend.with.backend.Model.PointsDistribution;
 import com.tournamenthost.connect.frontend.with.backend.Model.Event.EventRegistration;
 import com.tournamenthost.connect.frontend.with.backend.Model.Event.BaseEvent;
@@ -264,6 +270,11 @@ public class TournamentController {
                     dto.setEventType("ROUND_ROBIN");
                 }
 
+                // Set match configuration
+                dto.setMatchType(event.getMatchType().name());
+                dto.setGamesPerMatch(event.getGamesPerMatch());
+                dto.setGamesRequiredToWin(event.getGamesRequiredToWin());
+
                 eventDTOs.add(dto);
             }
             return ResponseEntity.ok(eventDTOs);
@@ -442,6 +453,25 @@ public class TournamentController {
         }
     }
 
+    // Configure match type and games per match for an event (must be done before initialization)
+    @PostMapping("/{tournamentId}/event/{eventIndex}/match-config")
+    public ResponseEntity<?> configureEventMatches(
+            @PathVariable Long tournamentId,
+            @PathVariable int eventIndex,
+            @RequestBody EventMatchConfigRequest config) {
+        try {
+            User currentUser = getCurrentUser();
+            tournamentService.verifyEditPermission(tournamentId, currentUser);
+
+            tournamentService.configureEventMatches(tournamentId, eventIndex, config);
+            return ResponseEntity.ok().build();
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        } catch (IllegalStateException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
         // Initialize event (stub)
     // Initialize event (requires both tournamentId and eventIndex)
     @PostMapping("/{tournamentId}/event/{eventIndex}/initialize")
@@ -501,21 +531,83 @@ public class TournamentController {
         dto.setId(match.getId());
         dto.setCompleted(match.isCompleted());
         dto.setScore(match.getScore());
+        dto.setMatchType(match.getMatchType() != null ? match.getMatchType().name() : "SINGLES");
+        dto.setGamesRequiredToWin(match.getGamesRequiredToWin());
 
+        // Convert games
+        if (match.getGames() != null) {
+            List<GameDTO> gameDTOs = match.getGames().stream()
+                .map(game -> {
+                    GameDTO gameDTO = new GameDTO();
+                    gameDTO.setId(game.getId());
+                    gameDTO.setTeamAScore(game.getTeamAScore());
+                    gameDTO.setTeamBScore(game.getTeamBScore());
+                    return gameDTO;
+                })
+                .collect(java.util.stream.Collectors.toList());
+            dto.setGames(gameDTOs);
+        }
+
+        // Handle team-based matches (doubles)
+        Team teamA = match.getTeamA();
+        Team teamB = match.getTeamB();
+        Team winnerTeam = match.getWinnerTeam();
+
+        if (teamA != null || teamB != null) {
+            // This is a team-based match
+            dto.setTeamA(convertTeamToDTO(teamA));
+            dto.setTeamB(convertTeamToDTO(teamB));
+            dto.setWinnerTeam(winnerTeam != null ? convertTeamToDTO(winnerTeam) : null);
+        }
+
+        // Handle player-based matches (singles) - for backward compatibility
         User playerA = match.getPlayerA();
         User playerB = match.getPlayerB();
         User winner = match.getWinner();
 
-        // Use SeededUserDTO if event is provided, otherwise regular UserDTO
-        UserDTO playerADTO = createUserDTO(playerA, event);
-        UserDTO playerBDTO = createUserDTO(playerB, event);
-        UserDTO winnerDTO = createUserDTO(winner, event);
+        if (playerA != null || playerB != null) {
+            // Use SeededUserDTO if event is provided, otherwise regular UserDTO
+            UserDTO playerADTO = createUserDTO(playerA, event);
+            UserDTO playerBDTO = createUserDTO(playerB, event);
+            UserDTO winnerDTO = createUserDTO(winner, event);
 
-        dto.setPlayerA(playerADTO);
-        dto.setPlayerB(playerBDTO);
-        dto.setWinner(winner != null ? winnerDTO : null);
+            dto.setPlayerA(playerADTO);
+            dto.setPlayerB(playerBDTO);
+            dto.setWinner(winner != null ? winnerDTO : null);
+        }
 
         return dto;
+    }
+
+    // Helper method to convert Team to TeamDTO
+    private TeamDTO convertTeamToDTO(Team team) {
+        if (team == null) return null;
+
+        UserDTO player1DTO = null;
+        if (team.getPlayer1() != null) {
+            player1DTO = new UserDTO();
+            player1DTO.setId(team.getPlayer1().getId());
+            player1DTO.setUsername(team.getPlayer1().getUsername());
+            player1DTO.setName(team.getPlayer1().getName());
+            player1DTO.setTournaments(null);
+        }
+
+        UserDTO player2DTO = null;
+        if (team.getPlayer2() != null) {
+            player2DTO = new UserDTO();
+            player2DTO.setId(team.getPlayer2().getId());
+            player2DTO.setUsername(team.getPlayer2().getUsername());
+            player2DTO.setName(team.getPlayer2().getName());
+            player2DTO.setTournaments(null);
+        }
+
+        return new TeamDTO(
+            team.getId(),
+            player1DTO,
+            player2DTO,
+            team.getTeamType().name(),
+            team.getTeamName()
+        );
     }
 
     // Helper to create UserDTO with optional seed information
@@ -825,6 +917,71 @@ public class TournamentController {
         }
     }
 
+    /**
+     * Manually set team seeds for a doubles event
+     * POST /api/tournaments/{tournamentId}/event/{eventIndex}/seeds/teams/manual
+     * Body: { "teamSeeds": { "teamId": seedNumber, ... } }
+     * Example: { "teamSeeds": { "1": 1, "2": 2, "3": 3, "4": 4 } }
+     */
+    @PostMapping("/{tournamentId}/event/{eventIndex}/seeds/teams/manual")
+    public ResponseEntity<?> setManualTeamSeeds(
+            @PathVariable Long tournamentId,
+            @PathVariable int eventIndex,
+            @RequestBody Map<String, Object> request) {
+        try {
+            User currentUser = getCurrentUser();
+            tournamentService.verifyEditPermission(tournamentId, currentUser);
+
+            @SuppressWarnings("unchecked")
+            Map<String, Integer> teamSeedsStr = (Map<String, Integer>) request.get("teamSeeds");
+            Map<Long, Integer> teamSeeds = new TreeMap<>();
+            for (Map.Entry<String, Integer> entry : teamSeedsStr.entrySet()) {
+                teamSeeds.put(Long.parseLong(entry.getKey()), entry.getValue());
+            }
+
+            tournamentService.setManualTeamSeeds(tournamentId, eventIndex, teamSeeds);
+            return ResponseEntity.ok().build();
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    /**
+     * Automatically set team seeds from league rankings (averaged from both players)
+     * POST /api/tournaments/{tournamentId}/event/{eventIndex}/seeds/teams/auto
+     * Body: { "numberOfSeeds": 8 }
+     */
+    @PostMapping("/{tournamentId}/event/{eventIndex}/seeds/teams/auto")
+    public ResponseEntity<?> setAutoTeamSeeds(
+            @PathVariable Long tournamentId,
+            @PathVariable int eventIndex,
+            @RequestBody AutoSeedingRequest request) {
+        try {
+            User currentUser = getCurrentUser();
+            tournamentService.verifyEditPermission(tournamentId, currentUser);
+
+            tournamentService.setAutoTeamSeeds(tournamentId, eventIndex, request.getNumberOfSeeds());
+            return ResponseEntity.ok().build();
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    /**
+     * Get current team seeds for a doubles event
+     * GET /api/tournaments/{tournamentId}/event/{eventIndex}/seeds/teams
+     * Returns: { "teamId": seedNumber, ... }
+     */
+    @GetMapping("/{tournamentId}/event/{eventIndex}/seeds/teams")
+    public ResponseEntity<?> getTeamSeeds(@PathVariable Long tournamentId, @PathVariable int eventIndex) {
+        try {
+            BaseEvent event = tournamentService.getEventsForTournament(tournamentId).get(eventIndex);
+            return ResponseEntity.ok(event.getTeamSeeds());
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
     // ==================== EVENT REGISTRATION ENDPOINTS ====================
 
     /**
@@ -832,10 +989,14 @@ public class TournamentController {
      * POST /api/tournaments/{tournamentId}/event/{eventIndex}/signup
      */
     @PostMapping("/{tournamentId}/event/{eventIndex}/signup")
-    public ResponseEntity<?> signUpForEvent(@PathVariable Long tournamentId, @PathVariable int eventIndex) {
+    public ResponseEntity<?> signUpForEvent(
+            @PathVariable Long tournamentId,
+            @PathVariable int eventIndex,
+            @RequestBody(required = false) EventSignupRequest request) {
         try {
             User currentUser = getCurrentUser();
-            EventRegistration registration = tournamentService.signUpForEvent(tournamentId, eventIndex, currentUser);
+            String desiredPartner = (request != null) ? request.getDesiredPartner() : null;
+            EventRegistration registration = tournamentService.signUpForEvent(tournamentId, eventIndex, currentUser, desiredPartner);
 
             EventRegistrationDTO dto = new EventRegistrationDTO(registration);
             return ResponseEntity.ok(dto);
@@ -902,6 +1063,28 @@ public class TournamentController {
     }
 
     /**
+     * Get all registrations (pending and approved) for an event (moderators only)
+     * This includes desired partner information even after approval
+     * GET /api/tournaments/{tournamentId}/event/{eventIndex}/registrations/all
+     */
+    @GetMapping("/{tournamentId}/event/{eventIndex}/registrations/all")
+    public ResponseEntity<?> getAllRegistrations(@PathVariable Long tournamentId, @PathVariable int eventIndex) {
+        try {
+            User currentUser = getCurrentUser();
+            tournamentService.verifyEditPermission(tournamentId, currentUser);
+
+            List<EventRegistration> registrations = tournamentService.getAllRegistrations(tournamentId, eventIndex);
+            List<EventRegistrationDTO> dtos = registrations.stream()
+                .map(EventRegistrationDTO::new)
+                .toList();
+
+            return ResponseEntity.ok(dtos);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    /**
      * Approve multiple registrations (moderators only)
      * POST /api/tournaments/{tournamentId}/event/{eventIndex}/registrations/approve
      * Body: { "registrationIds": [1, 2, 3] }
@@ -939,6 +1122,95 @@ public class TournamentController {
             return ResponseEntity.ok().build();
         } catch (IllegalArgumentException | IllegalStateException e) {
             return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    /**
+     * Create a team from two players for a doubles event (moderators only)
+     * POST /api/tournaments/{tournamentId}/event/{eventIndex}/create-team
+     */
+    @PostMapping("/{tournamentId}/event/{eventIndex}/create-team")
+    public ResponseEntity<?> createTeam(
+            @PathVariable Long tournamentId,
+            @PathVariable int eventIndex,
+            @RequestBody CreateTeamRequest request) {
+        try {
+            User currentUser = getCurrentUser();
+            tournamentService.verifyEditPermission(tournamentId, currentUser);
+
+            Team team = tournamentService.createTeam(tournamentId, eventIndex, request.getPlayer1Id(), request.getPlayer2Id());
+            return ResponseEntity.ok(team);
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    /**
+     * Get all teams for an event
+     * GET /api/tournaments/{tournamentId}/event/{eventIndex}/teams
+     */
+    @GetMapping("/{tournamentId}/event/{eventIndex}/teams")
+    public ResponseEntity<?> getTeams(@PathVariable Long tournamentId, @PathVariable int eventIndex) {
+        try {
+            BaseEvent event = tournamentService.getEventsForTournament(tournamentId).get(eventIndex);
+            List<Team> teams = tournamentService.getTeamsForEvent(event);
+
+            // Convert to DTOs to avoid circular reference issues
+            List<TeamDTO> teamDTOs = teams.stream()
+                .map(team -> {
+                    UserDTO player1DTO = null;
+                    if (team.getPlayer1() != null) {
+                        player1DTO = new UserDTO();
+                        player1DTO.setId(team.getPlayer1().getId());
+                        player1DTO.setUsername(team.getPlayer1().getUsername());
+                        player1DTO.setName(team.getPlayer1().getName());
+                        player1DTO.setTournaments(null);
+                    }
+
+                    UserDTO player2DTO = null;
+                    if (team.getPlayer2() != null) {
+                        player2DTO = new UserDTO();
+                        player2DTO.setId(team.getPlayer2().getId());
+                        player2DTO.setUsername(team.getPlayer2().getUsername());
+                        player2DTO.setName(team.getPlayer2().getName());
+                        player2DTO.setTournaments(null);
+                    }
+
+                    return new TeamDTO(
+                        team.getId(),
+                        player1DTO,
+                        player2DTO,
+                        team.getTeamType().name(),
+                        team.getTeamName()
+                    );
+                })
+                .toList();
+
+            return ResponseEntity.ok(teamDTOs);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    /**
+     * Delete a team from an event (before event is initialized)
+     * DELETE /api/tournaments/{tournamentId}/event/{eventIndex}/teams/{teamId}
+     */
+    @DeleteMapping("/{tournamentId}/event/{eventIndex}/teams/{teamId}")
+    public ResponseEntity<?> deleteTeam(
+            @PathVariable Long tournamentId,
+            @PathVariable int eventIndex,
+            @PathVariable Long teamId) {
+        try {
+            User currentUser = getCurrentUser();
+            tournamentService.verifyEditPermission(tournamentId, currentUser);
+
+            tournamentService.deleteTeam(tournamentId, eventIndex, teamId);
+            return ResponseEntity.ok("Team deleted successfully");
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body("Failed to delete team: " + e.getMessage());
         }
     }
 }

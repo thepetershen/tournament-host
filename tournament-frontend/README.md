@@ -130,11 +130,11 @@ The frontend will be available at `http://localhost:5173`
 ## Roadmap
 
 ### Planned Features
-- 🎨 Enhanced UI/UX design
-- 🏅 Multiple tournament formats (double elimination, round robin, Swiss)
-- 📊 Ranking system and leagues
-- 🔍 Advanced search functionality for users and tournaments
-- 📢 Tournament hosting features:
+-  Enhanced UI/UX design
+-  Multiple tournament formats (double elimination, round robin, Swiss)
+-  Ranking system and leagues
+-  Advanced search functionality for users and tournaments
+- Tournament hosting features:
   - Player approval system
   - Tournament announcements
   - Seeding based on rankings
@@ -165,10 +165,14 @@ This project is open source and available under the [MIT License](LICENSE).
 
 Todos:
 
+support for multiple types, both in frontend and backend, in terms of players but also score
 
-Frontend: Support for every event type. Event pages and how that looks. Hosting. player pages. League pages. 
-actual hosting part: sign up(and approval of said players), winners, announcements, ability to advertise tournament, picture storage, seeding using ranking
+better UI for home page, better Ui for tournmanet page
 
-Better UI in general (pretty important)
+players in tournaments and everywhere simply linked to a player page. 
 
-security!!!
+proper permissions for all controllers
+
+ability to log in using google account maybe?????
+
+confrimation email login?

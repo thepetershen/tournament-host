@@ -69,14 +69,15 @@ function DoubleElimBracket({ draw }) {
                     <div className={styles.main}>
                         <SpacingContext.Provider value={MATCH_HEIGHT}>
                             <SingleElimEventMatch
-                                playerTop={bronzeMatch.playerA?.username || "TBD"}
-                                playerBottom={bronzeMatch.playerB?.username || "TBD"}
-                                winner={bronzeMatch.winner?.username}
+                                playerTop={bronzeMatch.teamA || bronzeMatch.playerA || "TBD"}
+                                playerBottom={bronzeMatch.teamB || bronzeMatch.playerB || "TBD"}
+                                winner={bronzeMatch.winnerTeam || bronzeMatch.winner}
                                 arrOfScore={bronzeMatch.score || []}
                                 nextMatch={false}
                                 prevMatch={false}
                                 matchId={bronzeMatch.id}
                                 isCompleted={bronzeMatch.completed}
+                                matchType={bronzeMatch.matchType || 'SINGLES'}
                             />
                         </SpacingContext.Provider>
                     </div>
@@ -97,13 +98,14 @@ function createMatchesForRound(roundDraw, isFirstRound, curSpacing, isLosersBrac
         toDisplay.push(
             <SpacingContext.Provider value={MATCH_HEIGHT} key={`match-${index}`}>
                 <SingleElimEventMatch
-                    playerTop={match.playerA?.username || "TBD"}
-                    playerBottom={match.playerB?.username || "TBD"}
-                    winner={match.winner?.username}
+                    playerTop={match.teamA || match.playerA || "TBD"}
+                    playerBottom={match.teamB || match.playerB || "TBD"}
+                    winner={match.winnerTeam || match.winner}
                     arrOfScore={match.score || []}
                     nextMatch={roundDraw.length !== 1 || !isFirstRound}
                     prevMatch={!isFirstRound}
                     highlightLoser={isLosersBracket}
+                    matchType={match.matchType || 'SINGLES'}
                 />
             </SpacingContext.Provider>
         );

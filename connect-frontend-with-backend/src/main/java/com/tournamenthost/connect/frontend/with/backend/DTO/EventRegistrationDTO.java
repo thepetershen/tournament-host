@@ -16,6 +16,7 @@ public class EventRegistrationDTO {
     private Date registeredAt;
     private Date reviewedAt;
     private UserDTO reviewedBy;
+    private String desiredPartner;
 
     public EventRegistrationDTO() {
     }
@@ -27,21 +28,24 @@ public class EventRegistrationDTO {
         this.status = registration.getStatus().name();
         this.registeredAt = registration.getRegisteredAt();
         this.reviewedAt = registration.getReviewedAt();
+        this.desiredPartner = registration.getDesiredPartner();
 
-        // Map user
+        // Map user - create simple DTO without tournaments to avoid circular references
         if (registration.getUser() != null) {
             this.user = new UserDTO();
             this.user.setId(registration.getUser().getId());
             this.user.setUsername(registration.getUser().getUsername());
             this.user.setName(registration.getUser().getName());
+            this.user.setTournaments(null); // Explicitly set to null to avoid serialization issues
         }
 
-        // Map reviewer
+        // Map reviewer - create simple DTO without tournaments to avoid circular references
         if (registration.getReviewedBy() != null) {
             this.reviewedBy = new UserDTO();
             this.reviewedBy.setId(registration.getReviewedBy().getId());
             this.reviewedBy.setUsername(registration.getReviewedBy().getUsername());
             this.reviewedBy.setName(registration.getReviewedBy().getName());
+            this.reviewedBy.setTournaments(null); // Explicitly set to null to avoid serialization issues
         }
     }
 
@@ -108,5 +112,13 @@ public class EventRegistrationDTO {
 
     public void setReviewedBy(UserDTO reviewedBy) {
         this.reviewedBy = reviewedBy;
+    }
+
+    public String getDesiredPartner() {
+        return desiredPartner;
+    }
+
+    public void setDesiredPartner(String desiredPartner) {
+        this.desiredPartner = desiredPartner;
     }
 }

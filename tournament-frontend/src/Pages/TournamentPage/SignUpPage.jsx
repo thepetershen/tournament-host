@@ -11,6 +11,7 @@ function SignUpPage() {
   const [loading, setLoading] = useState(true);
   const [signupStatus, setSignupStatus] = useState({});
   const [message, setMessage] = useState("");
+  const [partnerInputs, setPartnerInputs] = useState({});
 
   useEffect(() => {
     const fetchData = async () => {
@@ -37,13 +38,18 @@ function SignUpPage() {
   const handleSignUp = async (eventIndex) => {
     try {
       setMessage("");
-      await authAxios.post(`/api/tournaments/${tournamentId}/event/${eventIndex}/signup`);
+      const event = events.find(e => e.id === eventIndex);
+      const requestBody = event?.matchType === 'DOUBLES' && partnerInputs[eventIndex]
+        ? { desiredPartner: partnerInputs[eventIndex] }
+        : {};
+
+      await authAxios.post(`/api/tournaments/${tournamentId}/event/${eventIndex}/signup`, requestBody);
 
       setSignupStatus({
         ...signupStatus,
         [eventIndex]: "success"
       });
-      setMessage(`Successfully signed up for ${events.find(e => e.id === eventIndex)?.name || 'event'}!`);
+      setMessage(`Successfully signed up for ${event?.name || 'event'}!`);
     } catch (err) {
       const errorMsg = err.response?.data || "Failed to sign up";
       setSignupStatus({
@@ -102,9 +108,34 @@ function SignUpPage() {
               {events.map(event => (
                 <li key={event.id} className={styles.eventCard}>
                   <div className={styles.eventInfo}>
-                    <h3 className={styles.eventName}>{event.name}</h3>
+                    <h3 className={styles.eventName}>
+                      {event.name}
+                      {event.matchType === 'DOUBLES' && (
+                        <span className={styles.eventBadge}>Doubles</span>
+                      )}
+                    </h3>
                     {signupStatus[event.id] === "success" && (
                       <p className={styles.eventStatus}>Registration pending approval</p>
+                    )}
+                    {event.matchType === 'DOUBLES' && signupStatus[event.id] !== "success" && (
+                      <div className={styles.partnerInput}>
+                        <label className={styles.partnerLabel}>
+                          Desired Partner (username):
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="Enter partner's username (optional)"
+                          value={partnerInputs[event.id] || ''}
+                          onChange={(e) => setPartnerInputs({
+                            ...partnerInputs,
+                            [event.id]: e.target.value
+                          })}
+                          className={styles.partnerInputField}
+                        />
+                        <p className={styles.partnerHint}>
+                          The host will match you with your partner after signup
+                        </p>
+                      </div>
                     )}
                   </div>
                   <button

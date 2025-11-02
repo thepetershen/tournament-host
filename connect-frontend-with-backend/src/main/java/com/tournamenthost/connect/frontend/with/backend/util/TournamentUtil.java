@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Map;
 
 import com.tournamenthost.connect.frontend.with.backend.Model.User;
+import com.tournamenthost.connect.frontend.with.backend.Model.Team;
 
 public class TournamentUtil {
     public static int nextPowerOfTwo(int n) {
@@ -142,5 +143,91 @@ public class TournamentUtil {
         }
 
         return positions;
+    }
+
+    /**
+     * Generate a tournament draw with proper seeding for teams
+     * @param teams List of all teams
+     * @param matchAmount Number of matches in the first round (bracket size / 2)
+     * @param teamSeeds Map of team ID to seed number (1 = first seed, 2 = second, etc.)
+     * @return Ordered list of teams for bracket placement (teamA, teamB, teamA, teamB, ...)
+     */
+    public static ArrayList<Team> generateDrawUsingTeamSeeding(List<Team> teams, int matchAmount, Map<Long, Integer> teamSeeds) {
+        int bracketSize = matchAmount * 2;
+
+        // Create position array - index represents position in bracket (0 to bracketSize-1)
+        Team[] positions = new Team[bracketSize];
+
+        // Get standard seeding positions for power-of-2 bracket
+        int[] seedPositions = generateStandardSeedPositions(bracketSize);
+
+        // Separate seeded and unseeded teams
+        List<Team> seededTeams = new ArrayList<>();
+        List<Team> unseededTeams = new ArrayList<>();
+
+        // Create inverse map: seed number -> team
+        Map<Integer, Team> seedToTeam = new HashMap<>();
+        for (Team team : teams) {
+            Integer seed = teamSeeds.get(team.getId());
+            if (seed != null && seed > 0) {
+                seededTeams.add(team);
+                seedToTeam.put(seed, team);
+            } else {
+                unseededTeams.add(team);
+            }
+        }
+
+        // Shuffle unseeded teams for randomness
+        Collections.shuffle(unseededTeams);
+
+        // If no teams are seeded, treat all teams as if they were seeded 1-N
+        // and byes as seeds (N+1) to bracketSize
+        if (seededTeams.isEmpty()) {
+            // Assign unseeded teams to seed positions 1 through totalTeams
+            for (int i = 0; i < unseededTeams.size(); i++) {
+                int seed = i + 1;
+                int position = seedPositions[seed - 1];
+                positions[position] = unseededTeams.get(i);
+            }
+
+            // Byes occupy the remaining seed positions (totalTeams+1 to bracketSize)
+            // These are left as null
+        } else {
+            // Place seeded teams first
+            for (int seed = 1; seed <= seededTeams.size(); seed++) {
+                Team team = seedToTeam.get(seed);
+                if (team != null && seed - 1 < seedPositions.length) {
+                    positions[seedPositions[seed - 1]] = team;
+                }
+            }
+
+            // Fill remaining positions with unseeded teams, then byes
+            int unseededIndex = 0;
+
+            // First, find all empty positions and sort them by seed priority
+            List<Integer> emptyPositions = new ArrayList<>();
+            for (int seed = 1; seed <= bracketSize; seed++) {
+                int position = seedPositions[seed - 1];
+                if (positions[position] == null) {
+                    emptyPositions.add(position);
+                }
+            }
+
+            // Fill empty positions with unseeded teams first, then leave rest as byes
+            for (int position : emptyPositions) {
+                if (unseededIndex < unseededTeams.size()) {
+                    positions[position] = unseededTeams.get(unseededIndex++);
+                }
+                // else leave as null (bye)
+            }
+        }
+
+        // Convert to answer format (teamA, teamB, teamA, teamB, ...)
+        ArrayList<Team> answer = new ArrayList<>();
+        for (int i = 0; i < bracketSize; i++) {
+            answer.add(positions[i]);
+        }
+
+        return answer;
     }
 }

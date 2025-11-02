@@ -41,6 +41,9 @@ public class EventRegistration {
     @JoinColumn(name = "reviewed_by")
     private User reviewedBy;
 
+    @Column(name = "desired_partner")
+    private String desiredPartner;
+
     public EventRegistration() {
         this.status = RegistrationStatus.PENDING;
     }
@@ -106,6 +109,14 @@ public class EventRegistration {
 
     public void setReviewedBy(User reviewedBy) {
         this.reviewedBy = reviewedBy;
+    }
+
+    public String getDesiredPartner() {
+        return desiredPartner;
+    }
+
+    public void setDesiredPartner(String desiredPartner) {
+        this.desiredPartner = desiredPartner;
     }
 
     public enum RegistrationStatus {

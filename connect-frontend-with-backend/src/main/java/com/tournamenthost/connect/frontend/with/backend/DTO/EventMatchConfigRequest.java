@@ -7,11 +7,7 @@ import lombok.NoArgsConstructor;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class EventDTO {
-    private String name;
-    private int id;
-    private String eventType;
+public class EventMatchConfigRequest {
     private String matchType; // "SINGLES" or "DOUBLES"
-    private int gamesPerMatch;
-    private int gamesRequiredToWin;
+    private int gamesPerMatch; // 1, 3, 5, etc.
 }
