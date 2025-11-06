@@ -14,7 +14,7 @@ function Navbar() {
                     <Link to="/" className={styles.NavButton}>Home</Link>
                 </li>
                 <li className={styles.NavItem}>
-                    <Link to="/tournament" className={styles.NavButton}>Tournaments</Link>
+                    <Link to="/tournaments" className={styles.NavButton}>Tournaments</Link>
                 </li>
                 <li className={styles.NavItem}>
                     <Link to="/leagues" className={styles.NavButton}>Leagues</Link>

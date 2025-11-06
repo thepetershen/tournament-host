@@ -1,5 +1,9 @@
-.pageContainer {
-    padding: 2rem;
+.tournamentsContainer {
+    padding: 6rem 2rem;
+    background: #1a1a1a;
+}
+
+.tournamentsContent {
     max-width: 1400px;
     margin: 0 auto;
 }
@@ -7,17 +11,22 @@
 .header {
     display: flex;
     justify-content: space-between;
-    align-items: center;
-    margin-bottom: 2rem;
+    align-items: flex-end;
+    margin-bottom: 3rem;
     flex-wrap: wrap;
-    gap: 1rem;
+    gap: 1.5rem;
 }
 
-.heading {
+.tournamentsHeading {
     font-size: 2.5rem;
     font-weight: 700;
-    color: #fff;
-    margin: 0;
+    color: #ffffff;
+    margin-bottom: 0.5rem;
+}
+
+.tournamentsSubtext {
+    font-size: 1.1rem;
+    color: #9ca3af;
 }
 
 .viewAllButton {
@@ -27,7 +36,6 @@
     text-decoration: none;
     border-radius: 12px;
     font-weight: 600;
-    font-size: 0.95rem;
     transition: all 0.3s ease;
     box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
 }
@@ -37,16 +45,17 @@
     box-shadow: 0 6px 20px rgba(59, 130, 246, 0.4);
 }
 
-.empty {
+.loading,
+.emptyState {
     text-align: center;
-    padding: 4rem 2rem;
-    color: #888;
+    padding: 3rem;
+    color: #9ca3af;
     font-size: 1.1rem;
 }
 
 .tournamentGrid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
     gap: 1.5rem;
 }
 
@@ -54,7 +63,7 @@
     background: linear-gradient(135deg, #3a3a3a 0%, #2d2d2d 100%);
     color: #fff;
     border-radius: 16px;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
     padding: 1.5rem;
     display: flex;
     flex-direction: column;
@@ -68,7 +77,7 @@
 
 .tournamentCard:hover {
     transform: translateY(-4px);
-    box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
     border-color: #555;
 }
 
@@ -182,8 +191,8 @@
 
 /* Responsive Design */
 @media (max-width: 768px) {
-    .pageContainer {
-        padding: 1rem;
+    .tournamentsContainer {
+        padding: 4rem 1.5rem;
     }
 
     .header {
@@ -191,7 +200,7 @@
         align-items: flex-start;
     }
 
-    .heading {
+    .tournamentsHeading {
         font-size: 2rem;
     }
 
@@ -203,9 +212,5 @@
     .tournamentGrid {
         grid-template-columns: 1fr;
         gap: 1rem;
-    }
-
-    .tournamentCard {
-        min-height: 220px;
     }
 }

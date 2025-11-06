@@ -107,6 +107,106 @@ public class TournamentService {
         return tournaments;
     }
 
+    /**
+     * Get active tournaments with smart selection (ongoing + upcoming + recent completed)
+     * Limited to specified number of tournaments
+     */
+    public List<Tournament> getActiveTournaments(int limit) {
+        List<Tournament> all = getAllTournaments();
+        Date now = new Date();
+
+        // Categorize tournaments by status
+        List<Tournament> ongoing = filterOngoing(all, now);
+        List<Tournament> upcoming = filterUpcoming(all, now);
+        List<Tournament> completed = filterCompleted(all, now);
+
+        // Smart selection: prioritize ongoing, then upcoming, then recently completed
+        List<Tournament> result = new ArrayList<>();
+
+        // Add all ongoing tournaments (no limit on these - they're most important)
+        result.addAll(ongoing);
+
+        // Fill remaining slots with upcoming tournaments (sorted by start date)
+        int remaining = limit - result.size();
+        if (remaining > 0 && !upcoming.isEmpty()) {
+            upcoming.sort((a, b) -> a.getBegin().compareTo(b.getBegin())); // Soonest first
+            result.addAll(upcoming.stream().limit(remaining).toList());
+        }
+
+        // If still space, add recently completed tournaments
+        remaining = limit - result.size();
+        if (remaining > 0 && !completed.isEmpty()) {
+            completed.sort((a, b) -> b.getEnd().compareTo(a.getEnd())); // Most recent first
+            result.addAll(completed.stream().limit(remaining).toList());
+        }
+
+        return result;
+    }
+
+    /**
+     * Filter ongoing tournaments (begin <= now < end)
+     */
+    private List<Tournament> filterOngoing(List<Tournament> tournaments, Date now) {
+        return tournaments.stream()
+            .filter(t -> t.getBegin() != null && t.getEnd() != null)
+            .filter(t -> !t.getBegin().after(now) && t.getEnd().after(now))
+            .collect(java.util.stream.Collectors.toList());
+    }
+
+    /**
+     * Filter upcoming tournaments (begin > now)
+     */
+    private List<Tournament> filterUpcoming(List<Tournament> tournaments, Date now) {
+        return tournaments.stream()
+            .filter(t -> t.getBegin() != null)
+            .filter(t -> t.getBegin().after(now))
+            .collect(java.util.stream.Collectors.toList());
+    }
+
+    /**
+     * Filter completed tournaments (end <= now)
+     */
+    private List<Tournament> filterCompleted(List<Tournament> tournaments, Date now) {
+        return tournaments.stream()
+            .filter(t -> t.getEnd() != null)
+            .filter(t -> !t.getEnd().after(now))
+            .collect(java.util.stream.Collectors.toList());
+    }
+
+    /**
+     * Calculate tournament status based on dates
+     */
+    public String calculateStatus(Tournament tournament, Date now) {
+        if (tournament.getBegin() == null || tournament.getEnd() == null) {
+            return "UNKNOWN";
+        }
+
+        if (!tournament.getBegin().after(now) && tournament.getEnd().after(now)) {
+            return "ONGOING";
+        } else if (tournament.getBegin().after(now)) {
+            return "UPCOMING";
+        } else {
+            return "COMPLETED";
+        }
+    }
+
+    /**
+     * Count unique participants across all events in a tournament
+     */
+    public int countUniqueParticipants(Tournament tournament) {
+        java.util.Set<Long> uniquePlayerIds = new java.util.HashSet<>();
+
+        for (BaseEvent event : tournament.getEvents()) {
+            if (event.getPlayers() != null) {
+                for (User player : event.getPlayers()) {
+                    uniquePlayerIds.add(player.getId());
+                }
+            }
+        }
+
+        return uniquePlayerIds.size();
+    }
+
     public Tournament getTournament(Long id) {
         return tournamentRepo.findById(id)
             .orElseThrow(() -> new IllegalArgumentException("Tournament not found"));
@@ -1891,6 +1991,7 @@ public class TournamentService {
     /**
      * Calculate points for Single Elimination events
      * Assumes event is complete (all matches finished)
+     * Supports both singles and doubles matches
      */
     private Map<User, Integer> calculateSingleElimPoints(SingleElimEvent event, PointsDistribution pointsDistribution) {
         Map<User, Integer> userPoints = new TreeMap<>();
@@ -1910,21 +2011,26 @@ public class TournamentService {
             Integer points = pointsDistribution.getPointsForPlacement(placement);
 
             for (Match match : round.getMatches()) {
-                User loser = getLoser(match);
-                if (loser != null && !userPoints.containsKey(loser)) {
-                    userPoints.put(loser, points);
+                // Get losers (1 for singles, 2 for doubles team)
+                List<User> losers = getLosers(match);
+                for (User loser : losers) {
+                    if (loser != null && !userPoints.containsKey(loser)) {
+                        userPoints.put(loser, points);
+                    }
                 }
             }
         }
 
-        // Award 1st place points to the tournament winner
+        // Award 1st place points to the tournament winner(s)
         Round finalRound = rounds.get(totalRounds - 1);
         if (!finalRound.getMatches().isEmpty()) {
             Match finalMatch = finalRound.getMatches().get(0);
-            User winner = finalMatch.getWinner();
-            if (winner != null) {
-                Integer winnerPoints = pointsDistribution.getPointsForPlacement("1");
-                userPoints.put(winner, winnerPoints);
+            List<User> winners = getWinners(finalMatch);
+            Integer winnerPoints = pointsDistribution.getPointsForPlacement("1");
+            for (User winner : winners) {
+                if (winner != null) {
+                    userPoints.put(winner, winnerPoints);
+                }
             }
         }
 
@@ -1933,6 +2039,7 @@ public class TournamentService {
 
     /**
      * Calculate points for Round Robin events
+     * Supports both singles and doubles matches
      */
     private Map<User, Integer> calculateRoundRobinPoints(RoundRobinEvent event, PointsDistribution pointsDistribution) {
         Map<User, Integer> userPoints = new TreeMap<>();
@@ -1953,9 +2060,28 @@ public class TournamentService {
 
             for (Match match : schedule.getMatches()) {
                 if (match.isCompleted()) {
+                    // Check if this player won (works for both singles and doubles)
+                    boolean playerWon = false;
+
+                    // For singles: check if player is the winner
                     if (match.getWinner() != null && match.getWinner().equals(player)) {
+                        playerWon = true;
+                    }
+
+                    // For doubles: check if player's team won
+                    if (match.getMatchType() == com.tournamenthost.connect.frontend.with.backend.Model.MatchType.DOUBLES
+                        && match.getWinnerTeam() != null) {
+                        Team winnerTeam = match.getWinnerTeam();
+                        if ((winnerTeam.getPlayer1() != null && winnerTeam.getPlayer1().equals(player)) ||
+                            (winnerTeam.getPlayer2() != null && winnerTeam.getPlayer2().equals(player))) {
+                            playerWon = true;
+                        }
+                    }
+
+                    if (playerWon) {
                         wins++;
                     }
+
                     // Calculate player's score in this match
                     if (match.getScore() != null && !match.getScore().isEmpty()) {
                         totalScore += getPlayerScoreInMatch(match, player);
@@ -1988,13 +2114,13 @@ public class TournamentService {
 
     /**
      * Calculate points for Double Elimination events
+     * Supports both singles and doubles matches
      */
     private Map<User, Integer> calculateDoubleElimPoints(DoubleElimEvent event, PointsDistribution pointsDistribution) {
         Map<User, Integer> userPoints = new TreeMap<>();
         Map<User, String> userPlacements = new TreeMap<>();
 
         // Determine placements based on when players were eliminated
-        List<DoubleElimRound> winnersRounds = event.getWinnersBracket();
         List<DoubleElimRound> losersRounds = event.getLosersBracket();
 
         // Track eliminations from losers bracket (these determine final placements)
@@ -2003,25 +2129,38 @@ public class TournamentService {
             String placement = getPlacementForDoubleElimLosersRound(losersRounds.size(), i, losersRounds);
 
             for (Match match : round.getMatches()) {
-                if (match.isCompleted() && match.getWinner() != null) {
-                    User loser = getLoser(match);
-                    if (loser != null && !userPlacements.containsKey(loser)) {
-                        userPlacements.put(loser, placement);
+                if (match.isCompleted()) {
+                    // Get losers (1 for singles, 2 for doubles team)
+                    List<User> losers = getLosers(match);
+                    for (User loser : losers) {
+                        if (loser != null && !userPlacements.containsKey(loser)) {
+                            userPlacements.put(loser, placement);
+                        }
                     }
                 }
             }
         }
 
-        // Determine winner (grand finals winner)
+        // Determine winner and runner-up (grand finals)
         if (!losersRounds.isEmpty()) {
             DoubleElimRound lastLosersRound = losersRounds.get(losersRounds.size() - 1);
             if (!lastLosersRound.getMatches().isEmpty()) {
                 Match grandFinals = lastLosersRound.getMatches().get(0);
-                if (grandFinals.isCompleted() && grandFinals.getWinner() != null) {
-                    userPlacements.put(grandFinals.getWinner(), "1");
-                    User loser = getLoser(grandFinals);
-                    if (loser != null && !userPlacements.containsKey(loser)) {
-                        userPlacements.put(loser, "2");
+                if (grandFinals.isCompleted()) {
+                    // Award 1st place to winner(s)
+                    List<User> winners = getWinners(grandFinals);
+                    for (User winner : winners) {
+                        if (winner != null) {
+                            userPlacements.put(winner, "1");
+                        }
+                    }
+
+                    // Award 2nd place to loser(s)
+                    List<User> losers = getLosers(grandFinals);
+                    for (User loser : losers) {
+                        if (loser != null && !userPlacements.containsKey(loser)) {
+                            userPlacements.put(loser, "2");
+                        }
                     }
                 }
             }
@@ -2085,7 +2224,7 @@ public class TournamentService {
     }
 
     /**
-     * Helper: Get the loser of a match
+     * Helper: Get the loser of a match (legacy - for singles only)
      */
     private User getLoser(Match match) {
         if (match.getWinner() == null) return null;
@@ -2094,6 +2233,70 @@ public class TournamentService {
         } else {
             return match.getPlayerA();
         }
+    }
+
+    /**
+     * Helper: Get the winners of a match (supports both singles and doubles)
+     * Returns a list of users (1 for singles, 2 for doubles team members)
+     */
+    private List<User> getWinners(Match match) {
+        List<User> winners = new ArrayList<>();
+
+        // Check if this is a doubles match
+        if (match.getMatchType() == com.tournamenthost.connect.frontend.with.backend.Model.MatchType.DOUBLES && match.getWinnerTeam() != null) {
+            Team winnerTeam = match.getWinnerTeam();
+            if (winnerTeam.getPlayer1() != null) {
+                winners.add(winnerTeam.getPlayer1());
+            }
+            if (winnerTeam.getPlayer2() != null) {
+                winners.add(winnerTeam.getPlayer2());
+            }
+        } else if (match.getWinner() != null) {
+            // Singles match
+            winners.add(match.getWinner());
+        }
+
+        return winners;
+    }
+
+    /**
+     * Helper: Get the losers of a match (supports both singles and doubles)
+     * Returns a list of users (1 for singles, 2 for doubles team members)
+     */
+    private List<User> getLosers(Match match) {
+        List<User> losers = new ArrayList<>();
+
+        // Check if this is a doubles match
+        if (match.getMatchType() == com.tournamenthost.connect.frontend.with.backend.Model.MatchType.DOUBLES) {
+            if (match.getWinnerTeam() == null) {
+                return losers; // No winner yet, can't determine loser
+            }
+
+            // Find the losing team
+            Team loserTeam = null;
+            if (match.getTeamA() != null && !match.getTeamA().equals(match.getWinnerTeam())) {
+                loserTeam = match.getTeamA();
+            } else if (match.getTeamB() != null && !match.getTeamB().equals(match.getWinnerTeam())) {
+                loserTeam = match.getTeamB();
+            }
+
+            if (loserTeam != null) {
+                if (loserTeam.getPlayer1() != null) {
+                    losers.add(loserTeam.getPlayer1());
+                }
+                if (loserTeam.getPlayer2() != null) {
+                    losers.add(loserTeam.getPlayer2());
+                }
+            }
+        } else {
+            // Singles match
+            User loser = getLoser(match);
+            if (loser != null) {
+                losers.add(loser);
+            }
+        }
+
+        return losers;
     }
 
     /**

@@ -22,6 +22,11 @@ public class TournamentDTO {
     private String location;
     private Map<EventDTO, List<MatchDTO>> eventMatches;
 
+    // New fields for tournament listing
+    private String status;           // ONGOING, UPCOMING, COMPLETED
+    private Integer eventCount;      // Number of events
+    private Integer participantCount; // Unique participant count
+
     public TournamentDTO(String name, Long id) {
         this.name = name;
         this.id = id;

@@ -165,14 +165,14 @@ This project is open source and available under the [MIT License](LICENSE).
 
 Todos:
 
-support for multiple types, both in frontend and backend, in terms of players but also score
-
-better UI for home page, better Ui for tournmanet page
 
 players in tournaments and everywhere simply linked to a player page. 
 
 proper permissions for all controllers
 
+recover lost password.
+
+testing, and deploy. 
+
 ability to log in using google account maybe?????
 
-confrimation email login?

@@ -1,31 +1,32 @@
-import React, { useEffect, useState } from "react";
-import styles from "./TournamentMainPage.module.css";
-import authAxios from "../../utils/authAxios";
-import { Link } from "react-router-dom";
+import React, { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
+import authAxios from '../../../utils/authAxios';
+import styles from './TournamentsSection.module.css';
 
-function TournamentPage() {
+function TournamentsSection({ isLoggedIn }) {
     const [tournaments, setTournaments] = useState([]);
-    const [filter, setFilter] = useState('ALL');
+    const [loading, setLoading] = useState(true);
 
     useEffect(() => {
         fetchTournaments();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     const fetchTournaments = async () => {
         try {
-            const response = await authAxios.get("/api/tournaments?limit=20");
-            setTournaments(response.data)
+            const response = await authAxios.get('/api/tournaments?limit=6');
+            setTournaments(response.data);
         } catch (error) {
             console.error('Error fetching tournaments:', error);
+        } finally {
+            setLoading(false);
         }
-    }
+    };
 
     const formatDate = (dateString) => {
         if (!dateString) return 'TBA';
         const date = new Date(dateString);
         return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-    }
+    };
 
     const formatDateRange = (begin, end) => {
         if (!begin && !end) return 'Dates TBA';
@@ -37,52 +38,50 @@ function TournamentPage() {
 
         if (beginDate === endDate) return beginDate;
         return `${beginDate} - ${endDate}`;
-    }
+    };
 
-    const filteredTournaments = tournaments.filter(tournament => {
-        if (filter === 'ALL') return true;
-        return tournament.status === filter;
-    });
+    const heading = isLoggedIn ? 'Browse Tournaments' : 'Featured Tournaments';
+    const subtext = isLoggedIn
+        ? 'Discover and join tournaments happening now'
+        : 'Join thousands of competitors in exciting tournaments';
 
-    return (
-        <div className={styles.pageContainer}>
-            <div className={styles.header}>
-                <h2 className={styles.heading}>Tournaments</h2>
-                <div className={styles.filters}>
-                    <button
-                        className={filter === 'ALL' ? styles.activeFilter : ''}
-                        onClick={() => setFilter('ALL')}
-                    >
-                        All
-                    </button>
-                    <button
-                        className={filter === 'ONGOING' ? styles.activeFilter : ''}
-                        onClick={() => setFilter('ONGOING')}
-                    >
-                        Ongoing
-                    </button>
-                    <button
-                        className={filter === 'UPCOMING' ? styles.activeFilter : ''}
-                        onClick={() => setFilter('UPCOMING')}
-                    >
-                        Upcoming
-                    </button>
-                    <button
-                        className={filter === 'COMPLETED' ? styles.activeFilter : ''}
-                        onClick={() => setFilter('COMPLETED')}
-                    >
-                        Past
-                    </button>
+    if (loading) {
+        return (
+            <div className={styles.tournamentsContainer}>
+                <div className={styles.tournamentsContent}>
+                    <h2 className={styles.tournamentsHeading}>{heading}</h2>
+                    <p className={styles.loading}>Loading tournaments...</p>
                 </div>
             </div>
+        );
+    }
 
-            {filteredTournaments.length === 0 ? (
-                <div className={styles.emptyState}>
-                    <p>No tournaments found</p>
+    if (tournaments.length === 0) {
+        return (
+            <div className={styles.tournamentsContainer}>
+                <div className={styles.tournamentsContent}>
+                    <h2 className={styles.tournamentsHeading}>{heading}</h2>
+                    <p className={styles.emptyState}>No tournaments available at the moment</p>
                 </div>
-            ) : (
+            </div>
+        );
+    }
+
+    return (
+        <div className={styles.tournamentsContainer}>
+            <div className={styles.tournamentsContent}>
+                <div className={styles.header}>
+                    <div>
+                        <h2 className={styles.tournamentsHeading}>{heading}</h2>
+                        <p className={styles.tournamentsSubtext}>{subtext}</p>
+                    </div>
+                    <Link to="/tournaments" className={styles.viewAllButton}>
+                        View All →
+                    </Link>
+                </div>
+
                 <div className={styles.tournamentGrid}>
-                    {filteredTournaments.map((tournament) => (
+                    {tournaments.map((tournament) => (
                         <div key={tournament.id} className={styles.tournamentCard}>
                             <div className={`${styles.statusBadge} ${styles[tournament.status?.toLowerCase()]}`}>
                                 {tournament.status || 'UNKNOWN'}
@@ -98,7 +97,9 @@ function TournamentPage() {
                             <div className={styles.tournamentMeta}>
                                 <div className={styles.metaItem}>
                                     <span className={styles.metaIcon}>📅</span>
-                                    <span className={styles.metaText}>{formatDateRange(tournament.begin, tournament.end)}</span>
+                                    <span className={styles.metaText}>
+                                        {formatDateRange(tournament.begin, tournament.end)}
+                                    </span>
                                 </div>
 
                                 {tournament.location && (
@@ -121,17 +122,19 @@ function TournamentPage() {
 
                                 {tournament.owner && (
                                     <div className={styles.organizer}>
-                                        Organized by <span className={styles.organizerName}>{tournament.owner.name || tournament.owner.username}</span>
+                                        Organized by{' '}
+                                        <span className={styles.organizerName}>
+                                            {tournament.owner.name || tournament.owner.username}
+                                        </span>
                                     </div>
                                 )}
                             </div>
                         </div>
                     ))}
                 </div>
-            )}
+            </div>
         </div>
     );
-
 }
 
-export default TournamentPage;
+export default TournamentsSection;

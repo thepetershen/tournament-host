@@ -187,21 +187,32 @@ function TournamentControl() {
     setTimeout(() => setMessage({ type: '', text: '' }), 5000);
   };
 
-  // Helper function to get expected placements based on event type and player count
+  // Helper function to get expected placements based on event type and participant count
   const getExpectedPlacements = () => {
-    if (!selectedEvent || !eventPlayers.length) return [];
+    if (!selectedEvent) return [];
 
-    const playerCount = eventPlayers.length;
+    // Determine participant count based on match type
+    const isDoubles = selectedEvent.matchType === 'DOUBLES';
+    let participantCount;
+
+    if (isDoubles) {
+      if (!teams.length) return [];
+      participantCount = teams.length; // Use team count for doubles
+    } else {
+      if (!eventPlayers.length) return [];
+      participantCount = eventPlayers.length; // Use player count for singles
+    }
+
     const eventType = selectedEvent.eventType;
 
     if (eventType === 'ROUND_ROBIN') {
-      // Round Robin: every placement from 1 to playerCount
-      return Array.from({ length: playerCount }, (_, i) => String(i + 1));
+      // Round Robin: every placement from 1 to participantCount
+      return Array.from({ length: participantCount }, (_, i) => String(i + 1));
     } else if (eventType === 'SINGLE_ELIM') {
       // Single Elim: 1st, 2nd, 3rd (tied), 5th (tied), 9th (tied), etc.
       // Based on backend logic: finals loser = 2nd, semis losers = 3rd, quarters = 5th, etc.
       const placements = ['1', '2']; // Winner and finalist
-      const totalRounds = Math.ceil(Math.log2(playerCount));
+      const totalRounds = Math.ceil(Math.log2(participantCount));
 
       // Add placements for rounds before finals (semifinals and earlier)
       for (let roundIndex = totalRounds - 2; roundIndex >= 0; roundIndex--) {
@@ -220,7 +231,7 @@ function TournamentControl() {
     } else if (eventType === 'DOUBLE_ELIM') {
       // Double Elim: Similar to single elim but more granular placements
       const placements = ['1', '2', '3', '4'];
-      let remaining = playerCount - 4;
+      let remaining = participantCount - 4;
       let nextPlacement = 5;
 
       while (remaining > 0) {

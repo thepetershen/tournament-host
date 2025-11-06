@@ -40,6 +40,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
@@ -133,14 +134,37 @@ public class TournamentController {
     }
 
     @GetMapping
-    public ResponseEntity<List<TournamentDTO>> getAllTournaments() {
-        List<Tournament> tournaments = tournamentService.getAllTournaments();
+    public ResponseEntity<List<TournamentDTO>> getAllTournaments(
+            @RequestParam(defaultValue = "20") int limit) {
+        List<Tournament> tournaments = tournamentService.getActiveTournaments(limit);
         List<TournamentDTO> answer = new ArrayList<>();
+        Date now = new Date();
 
         for(Tournament t: tournaments){
             TournamentDTO dto = new TournamentDTO();
             dto.setId(t.getId());
             dto.setName(t.getName());
+            dto.setBegin(t.getBegin());
+            dto.setEnd(t.getEnd());
+            dto.setLocation(t.getLocation());
+
+            // Set owner info
+            if (t.getOwner() != null) {
+                UserDTO ownerDTO = new UserDTO();
+                ownerDTO.setId(t.getOwner().getId());
+                ownerDTO.setUsername(t.getOwner().getUsername());
+                ownerDTO.setName(t.getOwner().getName());
+                dto.setOwner(ownerDTO);
+            }
+
+            // Compute and set additional fields
+            dto.setStatus(tournamentService.calculateStatus(t, now));
+            dto.setEventCount(t.getEvents() != null ? t.getEvents().size() : 0);
+            dto.setParticipantCount(tournamentService.countUniqueParticipants(t));
+
+            // Explicitly exclude message field (too long for listing)
+            // dto.setMessage() is not called
+
             answer.add(dto);
         }
         return ResponseEntity.ok(answer);

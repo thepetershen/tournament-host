@@ -1,0 +1,139 @@
+.howItWorksContainer {
+    padding: 6rem 2rem;
+    background: #0f0f0f;
+}
+
+.howItWorksContent {
+    max-width: 1400px;
+    margin: 0 auto;
+}
+
+.howItWorksHeading {
+    font-size: 2.5rem;
+    font-weight: 700;
+    color: #ffffff;
+    text-align: center;
+    margin-bottom: 1rem;
+}
+
+.howItWorksSubtext {
+    font-size: 1.2rem;
+    color: #9ca3af;
+    text-align: center;
+    margin-bottom: 4rem;
+}
+
+.stepsContainer {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0;
+}
+
+.stepWrapper {
+    display: flex;
+    align-items: center;
+}
+
+.stepCard {
+    background: linear-gradient(135deg, #2d2d2d 0%, #1a1a1a 100%);
+    border-radius: 16px;
+    padding: 2.5rem 2rem;
+    border: 2px solid #3a3a3a;
+    transition: all 0.3s ease;
+    min-width: 280px;
+    max-width: 300px;
+    text-align: center;
+    position: relative;
+}
+
+.stepCard:hover {
+    transform: scale(1.05);
+    border-color: #3b82f6;
+    box-shadow: 0 12px 32px rgba(59, 130, 246, 0.3);
+    z-index: 10;
+}
+
+.stepNumber {
+    width: 60px;
+    height: 60px;
+    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.8rem;
+    font-weight: 800;
+    color: #ffffff;
+    margin: 0 auto 1.5rem;
+    box-shadow: 0 8px 20px rgba(59, 130, 246, 0.4);
+}
+
+.stepTitle {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #ffffff;
+    margin-bottom: 1rem;
+}
+
+.stepDescription {
+    font-size: 1rem;
+    color: #d1d5db;
+    line-height: 1.6;
+}
+
+.stepConnector {
+    font-size: 3rem;
+    color: #3b82f6;
+    margin: 0 1.5rem;
+    font-weight: 300;
+}
+
+/* Responsive Design */
+@media (max-width: 1200px) {
+    .stepsContainer {
+        flex-direction: column;
+        gap: 2rem;
+    }
+
+    .stepConnector {
+        transform: rotate(90deg);
+        margin: 1rem 0;
+    }
+
+    .stepCard {
+        max-width: 500px;
+        width: 100%;
+    }
+}
+
+@media (max-width: 768px) {
+    .howItWorksContainer {
+        padding: 4rem 1.5rem;
+    }
+
+    .howItWorksHeading {
+        font-size: 2rem;
+    }
+
+    .howItWorksSubtext {
+        font-size: 1.1rem;
+        margin-bottom: 3rem;
+    }
+
+    .stepCard {
+        padding: 2rem 1.5rem;
+        min-width: auto;
+    }
+
+    .stepNumber {
+        width: 50px;
+        height: 50px;
+        font-size: 1.5rem;
+    }
+
+    .stepTitle {
+        font-size: 1.3rem;
+    }
+}
