@@ -8,6 +8,7 @@ function HomePage() {
     const [tournaments, setTournaments] = useState([]);
     const [leagues, setLeagues] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
 
     useEffect(() => {
         fetchData();
@@ -21,8 +22,10 @@ function HomePage() {
             ]);
             setTournaments(tournamentsRes.data);
             setLeagues(leaguesRes.data);
+            setError(null);
         } catch (error) {
             console.error('Error fetching data:', error);
+            setError('Failed to load tournaments and leagues. Please try again later.');
         } finally {
             setLoading(false);
         }
@@ -50,6 +53,19 @@ function HomePage() {
         return (
             <div className={styles.homePage}>
                 <div className={styles.loading}>Loading...</div>
+            </div>
+        );
+    }
+
+    if (error) {
+        return (
+            <div className={styles.homePage}>
+                <div className={styles.error}>
+                    <p>{error}</p>
+                    <button onClick={fetchData} className={styles.retryButton}>
+                        Try Again
+                    </button>
+                </div>
             </div>
         );
     }

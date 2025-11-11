@@ -13,9 +13,11 @@ import org.springframework.stereotype.Service;
 
 import com.tournamenthost.connect.frontend.with.backend.DTO.EventDTO;
 import com.tournamenthost.connect.frontend.with.backend.DTO.MatchDTO;
+import com.tournamenthost.connect.frontend.with.backend.DTO.TeamDTO;
 import com.tournamenthost.connect.frontend.with.backend.DTO.TournamentDTO;
 import com.tournamenthost.connect.frontend.with.backend.DTO.UserDTO;
 import com.tournamenthost.connect.frontend.with.backend.Model.Match;
+import com.tournamenthost.connect.frontend.with.backend.Model.Team;
 import com.tournamenthost.connect.frontend.with.backend.Model.Tournament;
 import com.tournamenthost.connect.frontend.with.backend.Model.User;
 import com.tournamenthost.connect.frontend.with.backend.Model.Event.BaseEvent;
@@ -136,7 +138,22 @@ public class UserService {
         matchDTO.setCompleted(match.isCompleted());
         matchDTO.setScore(match.getScore());
 
-        // Convert players to simple UserDTOs (without tournaments to avoid circular reference)
+        // NEW: Convert team-based fields for doubles support
+        if (match.getTeamA() != null) {
+            matchDTO.setTeamA(convertToTeamDTO(match.getTeamA()));
+        }
+        if (match.getTeamB() != null) {
+            matchDTO.setTeamB(convertToTeamDTO(match.getTeamB()));
+        }
+        if (match.getWinnerTeam() != null) {
+            matchDTO.setWinnerTeam(convertToTeamDTO(match.getWinnerTeam()));
+        }
+        if (match.getMatchType() != null) {
+            matchDTO.setMatchType(match.getMatchType().toString());
+        }
+        matchDTO.setGamesRequiredToWin(match.getGamesRequiredToWin());
+
+        // OLD: Convert players to simple UserDTOs (kept for backward compatibility)
         if (match.getPlayerA() != null) {
             UserDTO playerADTO = new UserDTO();
             playerADTO.setId(match.getPlayerA().getId());
@@ -162,6 +179,37 @@ public class UserService {
         }
 
         return matchDTO;
+    }
+
+    /**
+     * Convert Team entity to TeamDTO
+     */
+    private TeamDTO convertToTeamDTO(Team team) {
+        TeamDTO teamDTO = new TeamDTO();
+        teamDTO.setId(team.getId());
+
+        if (team.getPlayer1() != null) {
+            UserDTO player1DTO = new UserDTO();
+            player1DTO.setId(team.getPlayer1().getId());
+            player1DTO.setUsername(team.getPlayer1().getUsername());
+            player1DTO.setName(team.getPlayer1().getName());
+            teamDTO.setPlayer1(player1DTO);
+        }
+
+        if (team.getPlayer2() != null) {
+            UserDTO player2DTO = new UserDTO();
+            player2DTO.setId(team.getPlayer2().getId());
+            player2DTO.setUsername(team.getPlayer2().getUsername());
+            player2DTO.setName(team.getPlayer2().getName());
+            teamDTO.setPlayer2(player2DTO);
+        }
+
+        if (team.getTeamType() != null) {
+            teamDTO.setTeamType(team.getTeamType().toString());
+        }
+        teamDTO.setTeamName(team.getTeamName());
+
+        return teamDTO;
     }
 
 }   

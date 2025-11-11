@@ -2,6 +2,7 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { createBrowserRouter, RouterProvider } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
+import './index.css';
 import HomePage from './Pages/HomePage/HomePage';
 import TournamentPage from './Pages/TournamentPage/TournamentMainPage';
 import TournamentIndividualPage from './Pages/TournamentPage/TournamentIndividualPage';
@@ -17,6 +18,8 @@ import Layout from './Pages/Layout';
 import RegisterPage from './Pages/LoginAndRegistration/RegisterPage';
 import LoginSuccessPage from './Pages/LoginAndRegistration/LoginSuccessPage';
 import LoginPage from './Pages/LoginAndRegistration/LoginPage';
+import ForgotPasswordPage from './Pages/LoginAndRegistration/ForgotPasswordPage';
+import ResetPasswordPage from './Pages/LoginAndRegistration/ResetPasswordPage';
 
 
 const router = createBrowserRouter([
@@ -37,7 +40,9 @@ const router = createBrowserRouter([
       { path: "league/:leagueId/control", element: <LeagueControlPanel/>},
       { path: "register", element: <RegisterPage/> },
       { path: "login-success", element: <LoginSuccessPage/> },
-      { path: "login", element: <LoginPage/> }
+      { path: "login", element: <LoginPage/> },
+      { path: "forgot-password", element: <ForgotPasswordPage/> },
+      { path: "reset-password", element: <ResetPasswordPage/> }
       // Add more child routes here
     ],
   },

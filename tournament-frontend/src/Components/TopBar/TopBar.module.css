@@ -12,6 +12,31 @@
   z-index: 101;
 }
 
+.menuButton {
+  display: none;
+  background: none;
+  border: none;
+  color: #fff;
+  cursor: pointer;
+  padding: 8px;
+  margin-right: 16px;
+  transition: opacity 0.2s;
+}
+
+.menuButton:hover {
+  opacity: 0.8;
+}
+
+@media (max-width: 768px) {
+  .menuButton {
+    display: block;
+  }
+
+  .topBar {
+    padding: 0 16px;
+  }
+}
+
 .overlay {
   position: fixed;
   top: 0;
@@ -67,6 +92,35 @@
   color: #888;
   text-align: center;
   padding: 16px 0;
+}
+
+.searchResultItem {
+  display: block;
+  padding: 10px 16px;
+  color: #222;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background 0.15s;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.searchResultItem:hover {
+  background: #f5f5f5;
+}
+
+.searchResultItem:last-child {
+  border-bottom: none;
+}
+
+@media (max-width: 768px) {
+  .searchInput {
+    width: 200px;
+    font-size: 0.9rem;
+  }
+
+  .searchDropdown {
+    width: 260px;
+  }
 }
 
 .buttonGroup {

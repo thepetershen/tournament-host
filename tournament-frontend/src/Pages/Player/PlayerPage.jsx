@@ -62,9 +62,18 @@ function PlayerPage() {
     const totalWins = player.tournaments?.reduce((total, tournament) => {
         if (!tournament.eventMatches) return total;
         const wins = Object.values(tournament.eventMatches).reduce((sum, matches) => {
-            return sum + matches.filter(match =>
-                match.completed && match.winner?.id === player.id
-            ).length;
+            return sum + matches.filter(match => {
+                if (!match.completed) return false;
+
+                // Check team-based winner first (NEW)
+                if (match.winnerTeam) {
+                    return match.winnerTeam.player1?.id === player.id ||
+                           match.winnerTeam.player2?.id === player.id;
+                }
+
+                // Fallback to old winner field
+                return match.winner?.id === player.id;
+            }).length;
         }, 0);
         return total + wins;
     }, 0) || 0;
@@ -228,20 +237,75 @@ function PlayerPage() {
                                                 </div>
                                                 <div className={styles.matchDetails}>
                                                     <div className={styles.matchPlayers}>
-                                                        <span className={match.playerA?.id === player.id ? styles.currentPlayer : ''}>
-                                                            {match.playerA ? <PlayerLink player={match.playerA} /> : 'TBD'}
-                                                        </span>
-                                                        <span className={styles.vs}>vs</span>
-                                                        <span className={match.playerB?.id === player.id ? styles.currentPlayer : ''}>
-                                                            {match.playerB ? <PlayerLink player={match.playerB} /> : 'TBD'}
-                                                        </span>
+                                                        {/* Check for team-based match first (NEW) */}
+                                                        {match.teamA || match.teamB ? (
+                                                            <>
+                                                                <span className={
+                                                                    match.teamA?.player1?.id === player.id ||
+                                                                    match.teamA?.player2?.id === player.id
+                                                                        ? styles.currentPlayer : ''
+                                                                }>
+                                                                    {match.teamA ? (
+                                                                        match.teamA.teamType === 'DOUBLES' ? (
+                                                                            <>
+                                                                                <PlayerLink player={match.teamA.player1} />
+                                                                                {' / '}
+                                                                                <PlayerLink player={match.teamA.player2} />
+                                                                            </>
+                                                                        ) : (
+                                                                            <PlayerLink player={match.teamA.player1} />
+                                                                        )
+                                                                    ) : 'TBD'}
+                                                                </span>
+                                                                <span className={styles.vs}>vs</span>
+                                                                <span className={
+                                                                    match.teamB?.player1?.id === player.id ||
+                                                                    match.teamB?.player2?.id === player.id
+                                                                        ? styles.currentPlayer : ''
+                                                                }>
+                                                                    {match.teamB ? (
+                                                                        match.teamB.teamType === 'DOUBLES' ? (
+                                                                            <>
+                                                                                <PlayerLink player={match.teamB.player1} />
+                                                                                {' / '}
+                                                                                <PlayerLink player={match.teamB.player2} />
+                                                                            </>
+                                                                        ) : (
+                                                                            <PlayerLink player={match.teamB.player1} />
+                                                                        )
+                                                                    ) : 'TBD'}
+                                                                </span>
+                                                            </>
+                                                        ) : (
+                                                            /* Fallback to old player-based display */
+                                                            <>
+                                                                <span className={match.playerA?.id === player.id ? styles.currentPlayer : ''}>
+                                                                    {match.playerA ? <PlayerLink player={match.playerA} /> : 'TBD'}
+                                                                </span>
+                                                                <span className={styles.vs}>vs</span>
+                                                                <span className={match.playerB?.id === player.id ? styles.currentPlayer : ''}>
+                                                                    {match.playerB ? <PlayerLink player={match.playerB} /> : 'TBD'}
+                                                                </span>
+                                                            </>
+                                                        )}
                                                     </div>
                                                     {match.completed ? (
                                                         <div className={styles.matchResult}>
-                                                            {match.winner?.id === player.id ? (
-                                                                <span className={styles.win}>W</span>
+                                                            {/* Check team-based winner first (NEW) */}
+                                                            {match.winnerTeam ? (
+                                                                (match.winnerTeam.player1?.id === player.id ||
+                                                                 match.winnerTeam.player2?.id === player.id) ? (
+                                                                    <span className={styles.win}>W</span>
+                                                                ) : (
+                                                                    <span className={styles.loss}>L</span>
+                                                                )
                                                             ) : (
-                                                                <span className={styles.loss}>L</span>
+                                                                /* Fallback to old winner field */
+                                                                match.winner?.id === player.id ? (
+                                                                    <span className={styles.win}>W</span>
+                                                                ) : (
+                                                                    <span className={styles.loss}>L</span>
+                                                                )
                                                             )}
                                                             {match.score && match.score.length === 2 && (
                                                                 <span className={styles.score}>

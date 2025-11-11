@@ -7,6 +7,8 @@ import PlayerLink from "../../Components/PlayerLink/PlayerLink";
 function TournamentPage() {
     const [tournaments, setTournaments] = useState([]);
     const [filter, setFilter] = useState('ALL');
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
 
     useEffect(() => {
         fetchTournaments();
@@ -14,11 +16,16 @@ function TournamentPage() {
     }, []);
 
     const fetchTournaments = async () => {
+        setLoading(true);
         try {
             const response = await publicAxios.get("/api/tournaments?limit=20");
-            setTournaments(response.data)
+            setTournaments(response.data);
+            setError(null);
         } catch (error) {
             console.error('Error fetching tournaments:', error);
+            setError('Failed to load tournaments. Please try again later.');
+        } finally {
+            setLoading(false);
         }
     }
 
@@ -44,6 +51,27 @@ function TournamentPage() {
         if (filter === 'ALL') return true;
         return tournament.status === filter;
     });
+
+    if (loading) {
+        return (
+            <div className={styles.pageContainer}>
+                <div className={styles.loading}>Loading tournaments...</div>
+            </div>
+        );
+    }
+
+    if (error) {
+        return (
+            <div className={styles.pageContainer}>
+                <div className={styles.error}>
+                    <p>{error}</p>
+                    <button onClick={fetchTournaments} className={styles.retryButton}>
+                        Try Again
+                    </button>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className={styles.pageContainer}>

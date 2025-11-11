@@ -4,7 +4,7 @@ import styles from "./TopBar.module.css";
 import publicAxios from "../../utils/publicAxios";
 import { useAuth } from "../../contexts/AuthContext";
 
-function TopBar() {
+function TopBar({ onMenuToggle }) {
   const navigate = useNavigate();
   const { isLoggedIn, clearAuth } = useAuth();
   const [searchFocused, setSearchFocused] = useState(false);
@@ -60,6 +60,13 @@ function TopBar() {
     <>
       {searchFocused && <div className={styles.overlay} />}
       <div className={styles.topBar} style={{ position: 'relative', zIndex: 101 }}>
+        <button className={styles.menuButton} onClick={onMenuToggle} aria-label="Toggle menu">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="3" y1="12" x2="21" y2="12"></line>
+            <line x1="3" y1="6" x2="21" y2="6"></line>
+            <line x1="3" y1="18" x2="21" y2="18"></line>
+          </svg>
+        </button>
         <div className={styles.searchContainer} ref={searchRef}>
           <input
             type="text"
@@ -99,9 +106,17 @@ function TopBar() {
                     <div className={styles.searchPlaceholder}>No tournaments found</div>
                   ) : (
                     searchResults.tournaments.map(tournament => (
-                      <div key={tournament.id} className={styles.searchResultItem}>
+                      <Link
+                        key={tournament.id}
+                        to={`/tournament/${tournament.id}`}
+                        className={styles.searchResultItem}
+                        onClick={() => {
+                          setSearchFocused(false);
+                          setSearchQuery('');
+                        }}
+                      >
                         {tournament.name}
-                      </div>
+                      </Link>
                     ))
                   )}
                 </>

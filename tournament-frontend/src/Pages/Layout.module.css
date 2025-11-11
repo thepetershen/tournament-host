@@ -1,0 +1,21 @@
+.layoutRoot {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  min-height: 100vh;
+  box-sizing: border-box;
+}
+
+.contentArea {
+  margin-left: 400px;
+  min-height: 100vh;
+  width: calc(100% - 400px);
+  box-sizing: border-box;
+}
+
+@media (max-width: 768px) {
+  .contentArea {
+    margin-left: 0;
+    width: 100%;
+  }
+}

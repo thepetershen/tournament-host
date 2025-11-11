@@ -311,8 +311,15 @@ public class TournamentService {
      * Check if a player is a participant in a match
      */
     private boolean isPlayerInMatch(Match match, User player) {
-        return (match.getPlayerA() != null && match.getPlayerA().equals(player)) ||
-               (match.getPlayerB() != null && match.getPlayerB().equals(player));
+        // Check old player-based fields for backward compatibility
+        boolean inOldFields = (match.getPlayerA() != null && match.getPlayerA().equals(player)) ||
+                              (match.getPlayerB() != null && match.getPlayerB().equals(player));
+
+        // Check new team-based fields for doubles support
+        boolean inTeamA = match.getTeamA() != null && match.getTeamA().hasPlayer(player);
+        boolean inTeamB = match.getTeamB() != null && match.getTeamB().hasPlayer(player);
+
+        return inOldFields || inTeamA || inTeamB;
     }
     // Event-related methods merged from EventService
     public BaseEvent addEvent(String name, EventType eventType, Long tournamentId) {

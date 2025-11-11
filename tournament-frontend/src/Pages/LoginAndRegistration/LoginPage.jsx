@@ -1,27 +1,49 @@
 import React, { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import styles from "./LoginPage.module.css";
 import axios from "axios";
-import { useNavigate } from "react-router-dom";
+import { useAuth } from "../../contexts/AuthContext";
+
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
 
 function LoginPage() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const { setToken, setUser } = useAuth();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
+    setLoading(true);
+
     try {
-      const response = await axios.post("http://localhost:8080/auth/login", {
+      // Login to get token
+      const loginResponse = await axios.post(`${API_BASE_URL}/auth/login`, {
         username,
         password,
       });
-      const { token } = response.data;
-      localStorage.setItem("token", token);
-      navigate("/tournament"); // Redirect to tournaments page after login
+      const { token } = loginResponse.data;
+
+      // Fetch user data
+      const userResponse = await axios.get(`${API_BASE_URL}/api/users/me`, {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
+
+      // Update AuthContext with token and user data
+      setToken(token);
+      setUser(userResponse.data);
+
+      // Redirect to home page
+      navigate("/");
     } catch (err) {
       setError("Invalid username or password");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -50,8 +72,15 @@ function LoginPage() {
           />
         </label>
         {error && <div className={styles.error}>{error}</div>}
-        <button type="submit" className={styles.loginButton}>Login</button>
+        <button type="submit" className={styles.loginButton} disabled={loading}>
+          {loading ? "Logging in..." : "Login"}
+        </button>
       </form>
+      <div className={styles.forgotPassword}>
+        <Link to="/forgot-password" className={styles.forgotLink}>
+          Forgot password?
+        </Link>
+      </div>
     </div>
   );
 }
