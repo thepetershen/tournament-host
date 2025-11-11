@@ -1,7 +1,8 @@
 import { Link } from "react-router-dom";
 import React, {useEffect, useState} from "react";
 import styles from "./HomePageContent.module.css";
-import authAxios from "../../utils/authAxios";
+import publicAxios from "../../utils/publicAxios";
+import PlayerLink from "../../Components/PlayerLink/PlayerLink";
 
 function HomePageContent() {
     const [tournaments, setTournaments] = useState([]);
@@ -12,7 +13,7 @@ function HomePageContent() {
 
     const fetchTournaments = async () => {
         try {
-            const response = await authAxios.get("/api/tournaments?limit=20");
+            const response = await publicAxios.get("/api/tournaments?limit=20");
             setTournaments(response.data)
         } catch (error) {
             console.error('Error fetching tournaments:', error);
@@ -86,7 +87,7 @@ function HomePageContent() {
 
                                 {tournament.owner && (
                                     <div className={styles.organizer}>
-                                        Organized by <span className={styles.organizerName}>{tournament.owner.name || tournament.owner.username}</span>
+                                        Organized by <span className={styles.organizerName}><PlayerLink player={tournament.owner} /></span>
                                     </div>
                                 )}
                             </div>

@@ -1,5 +1,6 @@
 import styles from './RoundRobinBracket.module.css';
 import React from 'react';
+import { Link } from 'react-router-dom';
 
 /**
  * RoundRobinBracket component
@@ -71,7 +72,28 @@ function RoundRobinBracket({ draw }) {
     };
 
     const getParticipantName = (participant) => {
-        return participant.teamName || participant.username || 'Participant';
+        return participant.teamName || participant.name || participant.username || 'Participant';
+    };
+
+    const renderParticipantName = (participant) => {
+        // For teams
+        if (participant.teamName) {
+            return participant.teamName;
+        }
+
+        // For individual players/users
+        if (participant.id && participant.username) {
+            return (
+                <Link
+                    to={`/player/${participant.id}`}
+                    style={{ color: 'inherit', textDecoration: 'none' }}
+                >
+                    {participant.name || participant.username}
+                </Link>
+            );
+        }
+
+        return 'Participant';
     };
 
     const renderMatchCell = (rowParticipant, colParticipant, rowIndex, colIndex) => {
@@ -164,7 +186,7 @@ function RoundRobinBracket({ draw }) {
                 {/* Top header row - participant names */}
                 {participants.map((participant, index) => (
                     <div key={`header-col-${index}`} className={styles.headerCell}>
-                        {getParticipantName(participant)}
+                        {renderParticipantName(participant)}
                     </div>
                 ))}
 
@@ -173,7 +195,7 @@ function RoundRobinBracket({ draw }) {
                     <React.Fragment key={`row-${rowIndex}`}>
                         {/* Left header column - participant name */}
                         <div className={styles.headerCell}>
-                            {getParticipantName(rowParticipant)}
+                            {renderParticipantName(rowParticipant)}
                         </div>
 
                         {/* Match cells */}

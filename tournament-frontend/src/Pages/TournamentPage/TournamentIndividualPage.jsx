@@ -1,11 +1,15 @@
 import { useEffect, useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import authAxios from "../../utils/authAxios";
+import publicAxios from "../../utils/publicAxios";
+import { useAuth } from "../../contexts/AuthContext";
+import PlayerLink from "../../Components/PlayerLink/PlayerLink";
 import styles from "./TournamentIndividualPage.module.css";
 
 function TournamentIndividualPage() {
   const { tournamentId } = useParams();
   const navigate = useNavigate();
+  const { isLoggedIn } = useAuth();
   const [tournament, setTournament] = useState(null);
   const [activeTab, setActiveTab] = useState("general");
   const [events, setEvents] = useState([]);
@@ -16,34 +20,33 @@ function TournamentIndividualPage() {
 
   useEffect(() => {
     // Fetch current user if authenticated
-    const token = localStorage.getItem('token');
-    if (token) {
+    if (isLoggedIn) {
       authAxios.get('/api/users/me')
         .then(res => setCurrentUser(res.data))
         .catch(err => console.error(err));
     }
 
-    // Fetch tournament general info
-    authAxios.get(`/api/tournaments/${tournamentId}`)
+    // Fetch tournament general info (public data)
+    publicAxios.get(`/api/tournaments/${tournamentId}`)
       .then(res => setTournament(res.data))
       .catch(err => console.error(err));
 
-    // Fetch events
-    authAxios.get(`/api/tournaments/${tournamentId}/events`)
+    // Fetch events (public data)
+    publicAxios.get(`/api/tournaments/${tournamentId}/events`)
       .then(res => setEvents(res.data))
       .catch(err => console.error(err));
 
-    // Fetch matches
-    authAxios.get(`/api/tournaments/${tournamentId}/matches`)
+    // Fetch matches (public data)
+    publicAxios.get(`/api/tournaments/${tournamentId}/matches`)
       .then(res => setMatches(res.data))
       .catch(err => console.error(err));
 
-    // Fetch players
-    authAxios.get(`/api/tournaments/${tournamentId}/users`)
+    // Fetch players (public data)
+    publicAxios.get(`/api/tournaments/${tournamentId}/users`)
       .then(res => setPlayers(res.data))
       .catch(err => console.error(err));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tournamentId]);
+  }, [tournamentId, isLoggedIn]);
 
   // Check if current user is authorized (owner or editor)
   useEffect(() => {
@@ -58,8 +61,7 @@ function TournamentIndividualPage() {
   }, [currentUser, tournament]);
 
   const handleSignUpClick = () => {
-    const token = localStorage.getItem('token');
-    if (!token) {
+    if (!isLoggedIn) {
       navigate('/login');
       return;
     }
@@ -70,8 +72,7 @@ function TournamentIndividualPage() {
         navigate(`/tournament/${tournamentId}/signup`);
       })
       .catch(() => {
-        // Token is invalid or expired
-        localStorage.removeItem('token');
+        // Token is invalid or expired - auth context will handle clearing
         navigate('/login');
       });
   };
@@ -89,7 +90,7 @@ function TournamentIndividualPage() {
               {tournament.owner && (
                 <div className={styles.metaItem}>
                   <span className={styles.metaLabel}>Owner:</span>
-                  <span>{tournament.owner.username || tournament.owner.name}</span>
+                  <span><PlayerLink player={tournament.owner} /></span>
                 </div>
               )}
               <div className={styles.metaItem}>
@@ -157,7 +158,7 @@ function TournamentIndividualPage() {
                 <div className={styles.infoItem}>
                   <div className={styles.infoLabel}>Owner</div>
                   <div className={styles.infoValue}>
-                    {tournament.owner.username || tournament.owner.name}
+                    <PlayerLink player={tournament.owner} />
                   </div>
                 </div>
               )}
@@ -208,7 +209,7 @@ function TournamentIndividualPage() {
               <ul className={styles.playersGrid}>
                 {players.map(player => (
                   <li key={player.id} className={styles.playerItem}>
-                    {player.username}
+                    <PlayerLink player={player} />
                   </li>
                 ))}
               </ul>

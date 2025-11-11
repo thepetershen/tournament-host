@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import authAxios from '../../utils/authAxios';
+import PlayerLink from '../../Components/PlayerLink/PlayerLink';
 import styles from './LeagueControlPanel.module.css';
 
 function LeagueControlPanel() {
@@ -260,8 +261,10 @@ function LeagueControlPanel() {
                   {editors.map(editor => (
                     <div key={editor.id} className={styles.editorItem}>
                       <div className={styles.editorInfo}>
-                        <span className={styles.editorUsername}>{editor.username}</span>
-                        {editor.name && <span className={styles.editorName}>({editor.name})</span>}
+                        <span className={styles.editorUsername}>
+                          <PlayerLink player={editor} />
+                        </span>
+                        <span className={styles.editorName}>@{editor.username}</span>
                       </div>
                       <button
                         onClick={() => handleRemoveEditor(editor.id)}
@@ -342,8 +345,10 @@ function LeagueControlPanel() {
                 {searchResults.map(user => (
                   <div key={user.id} className={styles.searchResultItem}>
                     <div>
-                      <div className={styles.resultUsername}>{user.username}</div>
-                      {user.name && <div className={styles.resultName}>{user.name}</div>}
+                      <div className={styles.resultUsername}>
+                        <PlayerLink player={user} />
+                      </div>
+                      <div className={styles.resultName}>@{user.username}</div>
                     </div>
                     <button onClick={() => handleAddEditor(user.id)} className={styles.addButton}>
                       Add

@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import authAxios from '../../utils/authAxios';
+import publicAxios from '../../utils/publicAxios';
+import PlayerLink from '../../Components/PlayerLink/PlayerLink';
 import styles from './LeaguesPage.module.css';
 
 function LeaguesPage() {
@@ -17,7 +19,7 @@ function LeaguesPage() {
 
   const fetchLeagues = async () => {
     try {
-      const response = await authAxios.get('/api/leagues');
+      const response = await publicAxios.get('/api/leagues');
       setLeagues(response.data);
       setLoading(false);
     } catch (err) {
@@ -82,7 +84,9 @@ function LeaguesPage() {
               <div className={styles.leagueInfo}>
                 <div className={styles.infoItem}>
                   <span className={styles.infoLabel}>Owner:</span>
-                  <span className={styles.infoValue}>{league.owner?.username || 'Unknown'}</span>
+                  <span className={styles.infoValue}>
+                    <PlayerLink player={league.owner} />
+                  </span>
                 </div>
                 <div className={styles.infoItem}>
                   <span className={styles.infoLabel}>Tournaments:</span>

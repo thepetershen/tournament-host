@@ -1,11 +1,12 @@
 import React, { useState, useRef, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import styles from "./TopBar.module.css";
-import authAxios from "../../utils/authAxios";
+import publicAxios from "../../utils/publicAxios";
+import { useAuth } from "../../contexts/AuthContext";
 
 function TopBar() {
   const navigate = useNavigate();
-  const isLoggedIn = !!localStorage.getItem("token");
+  const { isLoggedIn, clearAuth } = useAuth();
   const [searchFocused, setSearchFocused] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState({ players: [], tournaments: [] });
@@ -18,7 +19,7 @@ function TopBar() {
   };
 
   const handleLogout = () => {
-    localStorage.removeItem("token");
+    clearAuth();
     navigate("/login");
   };
 
@@ -32,7 +33,7 @@ function TopBar() {
     setLoading(true);
     if (debounceTimeout.current) clearTimeout(debounceTimeout.current);
     debounceTimeout.current = setTimeout(() => {
-      authAxios.get(`/api/search?query=${encodeURIComponent(searchQuery)}`)
+      publicAxios.get(`/api/search?query=${encodeURIComponent(searchQuery)}`)
         .then(res => setSearchResults(res.data))
         .catch(() => setSearchResults({ players: [], tournaments: [] }))
         .finally(() => setLoading(false));
@@ -80,9 +81,17 @@ function TopBar() {
                     <div className={styles.searchPlaceholder}>No players found</div>
                   ) : (
                     searchResults.players.map(player => (
-                      <div key={player.id} className={styles.searchResultItem}>
-                        {player.username} {player.name ? `(${player.name})` : ""}
-                      </div>
+                      <Link
+                        key={player.id}
+                        to={`/player/${player.id}`}
+                        className={styles.searchResultItem}
+                        onClick={() => {
+                          setSearchFocused(false);
+                          setSearchQuery('');
+                        }}
+                      >
+                        {player.name || player.username}
+                      </Link>
                     ))
                   )}
                   <div style={{fontWeight: 'bold', padding: '12px 16px 2px'}}>Tournaments</div>

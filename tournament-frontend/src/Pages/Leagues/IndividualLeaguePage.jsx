@@ -1,11 +1,15 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import authAxios from '../../utils/authAxios';
+import publicAxios from '../../utils/publicAxios';
+import { useAuth } from '../../contexts/AuthContext';
+import PlayerLink from '../../Components/PlayerLink/PlayerLink';
 import styles from './IndividualLeaguePage.module.css';
 
 function IndividualLeaguePage() {
   const { leagueId } = useParams();
   const navigate = useNavigate();
+  const { isLoggedIn } = useAuth();
 
   const [league, setLeague] = useState(null);
   const [tournaments, setTournaments] = useState([]);
@@ -18,8 +22,10 @@ function IndividualLeaguePage() {
 
   useEffect(() => {
     fetchLeagueData();
-    fetchCurrentUser();
-  }, [leagueId]);
+    if (isLoggedIn) {
+      fetchCurrentUser();
+    }
+  }, [leagueId, isLoggedIn]);
 
   const fetchCurrentUser = async () => {
     try {
@@ -33,9 +39,9 @@ function IndividualLeaguePage() {
   const fetchLeagueData = async () => {
     try {
       const [leagueRes, tournamentsRes, rankingsRes] = await Promise.all([
-        authAxios.get(`/api/leagues/${leagueId}`),
-        authAxios.get(`/api/leagues/${leagueId}/tournaments`),
-        authAxios.get(`/api/leagues/${leagueId}/rankings`)
+        publicAxios.get(`/api/leagues/${leagueId}`),
+        publicAxios.get(`/api/leagues/${leagueId}/tournaments`),
+        publicAxios.get(`/api/leagues/${leagueId}/rankings`)
       ]);
 
       setLeague(leagueRes.data);
@@ -90,7 +96,9 @@ function IndividualLeaguePage() {
         <div className={styles.headerContent}>
           <h1 className={styles.title}>{league.name}</h1>
           <div className={styles.leagueInfo}>
-            <span className={styles.infoItem}>Owner: {league.owner?.username}</span>
+            <span className={styles.infoItem}>
+              Owner: <PlayerLink player={league.owner} />
+            </span>
             <span className={styles.infoItem}>{tournaments.length} Tournaments</span>
             <span className={styles.infoItem}>{rankings.length} Players</span>
           </div>
@@ -203,10 +211,10 @@ function IndividualLeaguePage() {
                     </div>
                     <div className={styles.playerCol}>
                       <div className={styles.playerInfo}>
-                        <span className={styles.playerUsername}>{ranking.player?.username}</span>
-                        {ranking.player?.name && (
-                          <span className={styles.playerName}>({ranking.player?.name})</span>
-                        )}
+                        <span className={styles.playerUsername}>
+                          <PlayerLink player={ranking.player} />
+                        </span>
+                        <span className={styles.playerName}>@{ranking.player?.username}</span>
                       </div>
                     </div>
                     <div className={styles.pointsCol}>

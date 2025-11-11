@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import authAxios from '../../utils/authAxios';
+import PlayerLink from '../../Components/PlayerLink/PlayerLink';
 import styles from './TournamentControl.module.css';
 
 function TournamentControl() {
@@ -479,7 +480,7 @@ function TournamentControl() {
 
     const filtered = allTournamentPlayers.filter(player =>
       player.username.toLowerCase().includes(playerSearchQuery.toLowerCase()) ||
-      player.name.toLowerCase().includes(playerSearchQuery.toLowerCase())
+      (player.name && player.name.toLowerCase().includes(playerSearchQuery.toLowerCase()))
     );
     setPlayerSearchResults(filtered);
   };
@@ -713,10 +714,10 @@ function TournamentControl() {
 
     // For singles/player-based matches
     if (side === 'A' && match.playerA) {
-      return match.playerA.username || 'Player A';
+      return match.playerA.name || match.playerA.username || 'Player A';
     }
     if (side === 'B' && match.playerB) {
-      return match.playerB.username || 'Player B';
+      return match.playerB.name || match.playerB.username || 'Player B';
     }
 
     return 'TBD';
@@ -734,7 +735,7 @@ function TournamentControl() {
       return match.winnerTeam.teamName || 'Winner Team';
     }
     if (match.winner) {
-      return match.winner.username || 'Winner';
+      return match.winner.name || match.winner.username || 'Winner';
     }
     return 'Unknown';
   };
@@ -899,7 +900,9 @@ function TournamentControl() {
                 <div className={styles.detailsGrid}>
                   <div className={styles.detailItem}>
                     <span className={styles.detailLabel}>Owner:</span>
-                    <span className={styles.detailValue}>{tournament.owner?.username || 'N/A'}</span>
+                    <span className={styles.detailValue}>
+                      <PlayerLink player={tournament.owner} />
+                    </span>
                   </div>
                   {tournament.location && (
                     <div className={styles.detailItem}>
@@ -1052,8 +1055,8 @@ function TournamentControl() {
                               }}
                             />
                           </td>
-                          <td>{reg.user?.username}</td>
-                          <td>{reg.user?.name}</td>
+                          <td><PlayerLink player={reg.user} /></td>
+                          <td>{reg.user?.name || '-'}</td>
                           <td>{reg.desiredPartner || '-'}</td>
                           <td>{new Date(reg.registeredAt).toLocaleString()}</td>
                           <td>
@@ -1099,8 +1102,10 @@ function TournamentControl() {
                 <div className={styles.playersGrid}>
                   {eventPlayers.map(player => (
                     <div key={player.id} className={styles.playerCard}>
-                      <div className={styles.playerName}>{player.username}</div>
-                      <div className={styles.playerDetail}>{player.name}</div>
+                      <div className={styles.playerName}>
+                        <PlayerLink player={player} />
+                      </div>
+                      <div className={styles.playerDetail}>@{player.username}</div>
                     </div>
                   ))}
                 </div>
@@ -1165,12 +1170,10 @@ function TournamentControl() {
                                 <tr key={reg.user?.id || reg.id}>
                                   <td>
                                     <div>
-                                      <strong>{reg.user?.username}</strong>
-                                      {reg.user?.name && (
-                                        <div style={{ fontSize: '0.85rem', color: '#666', marginTop: '2px' }}>
-                                          {reg.user.name}
-                                        </div>
-                                      )}
+                                      <strong><PlayerLink player={reg.user} /></strong>
+                                      <div style={{ fontSize: '0.85rem', color: '#666', marginTop: '2px' }}>
+                                        @{reg.user?.username}
+                                      </div>
                                     </div>
                                   </td>
                                   <td>
@@ -1199,7 +1202,7 @@ function TournamentControl() {
                                         .filter(p => p.id !== reg.user.id)
                                         .map(player => (
                                           <option key={player.id} value={player.id}>
-                                            {player.username} {player.name && `(${player.name})`}
+                                            {player.name || player.username}
                                           </option>
                                         ))}
                                     </select>
@@ -1248,7 +1251,7 @@ function TournamentControl() {
                             <option value="">Select first player...</option>
                             {eventPlayers.map(player => (
                               <option key={player.id} value={player.id}>
-                                {player.username} ({player.name})
+                                {player.name || player.username}
                               </option>
                             ))}
                           </select>
@@ -1271,7 +1274,7 @@ function TournamentControl() {
                               .filter(p => p.id.toString() !== selectedPartners['manual1'])
                               .map(player => (
                                 <option key={player.id} value={player.id}>
-                                  {player.username} ({player.name})
+                                  {player.name || player.username}
                                 </option>
                               ))}
                           </select>
@@ -1361,7 +1364,9 @@ function TournamentControl() {
                           .map(player => (
                             <div key={player.id} className={styles.seedItem}>
                               <span className={styles.seedNumber}>Seed {seeds[player.id]}</span>
-                              <span className={styles.playerName}>{player.username}</span>
+                              <span className={styles.playerName}>
+                                <PlayerLink player={player} />
+                              </span>
                             </div>
                           ))}
                       </div>
@@ -1447,10 +1452,10 @@ function TournamentControl() {
                           eventPlayers.map(player => (
                             <div key={player.id} className={styles.playerSeedRow}>
                               <div className={styles.playerInfo}>
-                                <span className={styles.playerUsername}>{player.username}</span>
-                                {player.name && (
-                                  <span className={styles.playerRealName}>({player.name})</span>
-                                )}
+                                <span className={styles.playerUsername}>
+                                  <PlayerLink player={player} />
+                                </span>
+                                <span className={styles.playerRealName}>@{player.username}</span>
                               </div>
                               <div className={styles.seedInputContainer}>
                                 <label htmlFor={`seed-${player.id}`}>Seed:</label>
@@ -1678,8 +1683,8 @@ function TournamentControl() {
                     <tbody>
                       {editors.map(editor => (
                         <tr key={editor.id}>
-                          <td>{editor.username}</td>
-                          <td>{editor.name}</td>
+                          <td><PlayerLink player={editor} /></td>
+                          <td>@{editor.username}</td>
                           <td>
                             <button
                               className={styles.dangerButtonSmall}
@@ -1816,8 +1821,10 @@ function TournamentControl() {
                   {searchResults.map(user => (
                     <div key={user.id} className={styles.searchResultItem}>
                       <div>
-                        <div style={{ fontWeight: 600, color: '#2d3748' }}>{user.username}</div>
-                        <div style={{ fontSize: '0.9rem', color: '#718096' }}>{user.name}</div>
+                        <div style={{ fontWeight: 600, color: '#2d3748' }}>
+                          <PlayerLink player={user} />
+                        </div>
+                        <div style={{ fontSize: '0.9rem', color: '#718096' }}>@{user.username}</div>
                       </div>
                       <button
                         className={styles.successButton}
@@ -1895,8 +1902,10 @@ function TournamentControl() {
                         }}
                       >
                         <div>
-                          <div style={{ fontWeight: 600, color: '#2d3748' }}>{player.username}</div>
-                          <div style={{ fontSize: '0.9rem', color: '#718096' }}>{player.name}</div>
+                          <div style={{ fontWeight: 600, color: '#2d3748' }}>
+                            <PlayerLink player={player} />
+                          </div>
+                          <div style={{ fontSize: '0.9rem', color: '#718096' }}>@{player.username}</div>
                         </div>
                         {isInEvent ? (
                           <span style={{ color: '#718096', fontSize: '0.9rem', fontWeight: 600 }}>

@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import authAxios from "../../utils/authAxios";
+import publicAxios from "../../utils/publicAxios";
+import PlayerLink from "../../Components/PlayerLink/PlayerLink";
 import styles from "./SignUpPage.module.css";
 
 function SignUpPage() {
@@ -16,12 +18,12 @@ function SignUpPage() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // Fetch tournament general info
-        const tournamentResponse = await authAxios.get(`/api/tournaments/${tournamentId}`);
+        // Fetch tournament general info (public data)
+        const tournamentResponse = await publicAxios.get(`/api/tournaments/${tournamentId}`);
         setTournament(tournamentResponse.data);
 
-        // Fetch events
-        const eventsResponse = await authAxios.get(`/api/tournaments/${tournamentId}/events`);
+        // Fetch events (public data)
+        const eventsResponse = await publicAxios.get(`/api/tournaments/${tournamentId}/events`);
         setEvents(eventsResponse.data);
 
         setLoading(false);
@@ -76,7 +78,7 @@ function SignUpPage() {
             {tournament.owner && (
               <div className={styles.metaItem}>
                 <span className={styles.metaLabel}>Owner:</span>
-                <span>{tournament.owner.username || tournament.owner.name}</span>
+                <span><PlayerLink player={tournament.owner} /></span>
               </div>
             )}
             <div className={styles.metaItem}>

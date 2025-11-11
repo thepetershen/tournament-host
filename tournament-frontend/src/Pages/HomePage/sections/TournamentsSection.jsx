@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import authAxios from '../../../utils/authAxios';
+import publicAxios from '../../../utils/publicAxios';
+import PlayerLink from '../../../Components/PlayerLink/PlayerLink';
 import styles from './TournamentsSection.module.css';
 
 function TournamentsSection({ isLoggedIn }) {
@@ -13,7 +14,7 @@ function TournamentsSection({ isLoggedIn }) {
 
     const fetchTournaments = async () => {
         try {
-            const response = await authAxios.get('/api/tournaments?limit=6');
+            const response = await publicAxios.get('/api/tournaments?limit=6');
             setTournaments(response.data);
         } catch (error) {
             console.error('Error fetching tournaments:', error);
@@ -124,7 +125,7 @@ function TournamentsSection({ isLoggedIn }) {
                                     <div className={styles.organizer}>
                                         Organized by{' '}
                                         <span className={styles.organizerName}>
-                                            {tournament.owner.name || tournament.owner.username}
+                                            <PlayerLink player={tournament.owner} />
                                         </span>
                                     </div>
                                 )}

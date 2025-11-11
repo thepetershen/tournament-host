@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import authAxios from '../../utils/authAxios';
+import publicAxios from '../../utils/publicAxios';
+import PlayerLink from '../../Components/PlayerLink/PlayerLink';
 import styles from './HomePage.module.css';
 
 function HomePage() {
@@ -15,8 +16,8 @@ function HomePage() {
     const fetchData = async () => {
         try {
             const [tournamentsRes, leaguesRes] = await Promise.all([
-                authAxios.get('/api/tournaments?limit=20'),
-                authAxios.get('/api/leagues')
+                publicAxios.get('/api/tournaments?limit=20'),
+                publicAxios.get('/api/leagues')
             ]);
             setTournaments(tournamentsRes.data);
             setLeagues(leaguesRes.data);
@@ -113,7 +114,7 @@ function HomePage() {
                                         <div className={styles.organizer}>
                                             Organized by{' '}
                                             <span className={styles.organizerName}>
-                                                {tournament.owner.name || tournament.owner.username}
+                                                <PlayerLink player={tournament.owner} />
                                             </span>
                                         </div>
                                     )}

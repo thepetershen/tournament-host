@@ -1,0 +1,17 @@
+.playerLink {
+    color: #2563eb;
+    text-decoration: none;
+    transition: color 0.2s ease;
+    cursor: pointer;
+}
+
+.playerLink:hover {
+    color: #1d4ed8;
+    text-decoration: underline;
+}
+
+.username {
+    color: #6b7280;
+    font-size: 0.9em;
+    font-weight: normal;
+}

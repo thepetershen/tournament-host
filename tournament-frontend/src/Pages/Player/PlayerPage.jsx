@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import authAxios from '../../utils/authAxios';
+import publicAxios from '../../utils/publicAxios';
+import PlayerLink from '../../Components/PlayerLink/PlayerLink';
 import styles from './PlayerPage.module.css';
 
 function PlayerPage() {
@@ -14,7 +15,7 @@ function PlayerPage() {
         const fetchPlayerData = async () => {
             try {
                 setLoading(true);
-                const response = await authAxios.get(`/api/users/${playerId}`);
+                const response = await publicAxios.get(`/api/users/${playerId}`);
                 setPlayer(response.data);
             } catch (err) {
                 setError('Failed to load player data.');
@@ -228,11 +229,11 @@ function PlayerPage() {
                                                 <div className={styles.matchDetails}>
                                                     <div className={styles.matchPlayers}>
                                                         <span className={match.playerA?.id === player.id ? styles.currentPlayer : ''}>
-                                                            {match.playerA?.name || match.playerA?.username || 'TBD'}
+                                                            {match.playerA ? <PlayerLink player={match.playerA} /> : 'TBD'}
                                                         </span>
                                                         <span className={styles.vs}>vs</span>
                                                         <span className={match.playerB?.id === player.id ? styles.currentPlayer : ''}>
-                                                            {match.playerB?.name || match.playerB?.username || 'TBD'}
+                                                            {match.playerB ? <PlayerLink player={match.playerB} /> : 'TBD'}
                                                         </span>
                                                     </div>
                                                     {match.completed ? (

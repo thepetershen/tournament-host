@@ -1,6 +1,7 @@
 import styles from "./SingleElimEventMatchStyle.module.css";
 import {useContext} from "react";
 import {SpacingContext} from './SingleElimBracket.jsx';
+import { Link } from 'react-router-dom';
 
 
 function SingleElimEventMatch({ playerTop = "BYE", playerBottom = "BYE", winner, arrOfScore = [], nextMatch, prevMatch, matchId, isCompleted, matchType = "SINGLES"}) {
@@ -14,10 +15,51 @@ function SingleElimEventMatch({ playerTop = "BYE", playerBottom = "BYE", winner,
         if (typeof team === 'string') return team;
         if (team.teamName) return team.teamName; // Use pre-formatted team name from backend
         if (team.player1 && team.player2) {
-            return `${team.player1.username} / ${team.player2.username}`;
+            return `${team.player1.name || team.player1.username} / ${team.player2.name || team.player2.username}`;
         }
-        if (team.player1) return team.player1.username;
-        if (team.username) return team.username; // Fallback for User objects
+        if (team.player1) return team.player1.name || team.player1.username;
+        if (team.username) return team.name || team.username; // Fallback for User objects
+        return "TBD";
+    };
+
+    // Helper function to render team/player names with links
+    const renderPlayerName = (team, styles = {}) => {
+        if (!team || team === "BYE") return "BYE";
+        if (typeof team === 'string') return team;
+
+        // Handle team (doubles)
+        if (team.player1 && team.player2) {
+            return (
+                <>
+                    <Link to={`/player/${team.player1.id}`} style={{ color: 'inherit', textDecoration: 'none' }}>
+                        {team.player1.name || team.player1.username}
+                    </Link>
+                    {' / '}
+                    <Link to={`/player/${team.player2.id}`} style={{ color: 'inherit', textDecoration: 'none' }}>
+                        {team.player2.name || team.player2.username}
+                    </Link>
+                </>
+            );
+        }
+
+        // Handle single player
+        if (team.player1) {
+            return (
+                <Link to={`/player/${team.player1.id}`} style={{ color: 'inherit', textDecoration: 'none' }}>
+                    {team.player1.name || team.player1.username}
+                </Link>
+            );
+        }
+
+        // Handle user object directly
+        if (team.id && team.username) {
+            return (
+                <Link to={`/player/${team.id}`} style={{ color: 'inherit', textDecoration: 'none' }}>
+                    {team.name || team.username}
+                </Link>
+            );
+        }
+
         return "TBD";
     };
 
@@ -83,7 +125,7 @@ function SingleElimEventMatch({ playerTop = "BYE", playerBottom = "BYE", winner,
                         fontSize: matchType === "DOUBLES" ? "11px" : "14px"
                     }}
                 >
-                    {topDisplayName}
+                    {renderPlayerName(playerTop)}
                 </div>
                 <div
                     className={styles.matchBottom}
@@ -95,7 +137,7 @@ function SingleElimEventMatch({ playerTop = "BYE", playerBottom = "BYE", winner,
                         fontSize: matchType === "DOUBLES" ? "11px" : "14px"
                     }}
                 >
-                    {bottomDisplayName}
+                    {renderPlayerName(playerBottom)}
                 </div>
                 <div className={styles.scoreTopContainer}>
                     {scoreListTop}

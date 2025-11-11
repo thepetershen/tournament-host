@@ -23,7 +23,8 @@ authAxios.interceptors.response.use(
     if (error.response && (error.response.status === 401 || error.response.status === 403)) {
       localStorage.removeItem('token');
       localStorage.removeItem('user');
-      // Don't redirect - just let the app handle the logged-out state naturally
+      // Dispatch event to notify AuthContext
+      window.dispatchEvent(new Event('auth:logout'));
     }
     return Promise.reject(error);
   }

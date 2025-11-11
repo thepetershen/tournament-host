@@ -166,9 +166,6 @@ This project is open source and available under the [MIT License](LICENSE).
 Todos:
 
 
-players in tournaments and everywhere simply linked to a player page. 
-
-proper permissions for all controllers
 
 recover lost password.
 
