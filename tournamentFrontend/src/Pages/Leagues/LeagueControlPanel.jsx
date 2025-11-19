@@ -23,6 +23,10 @@ function LeagueControlPanel() {
   const [editorSearchQuery, setEditorSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [currentUser, setCurrentUser] = useState(null);
+  const [showRenameModal, setShowRenameModal] = useState(false);
+  const [newLeagueName, setNewLeagueName] = useState('');
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState('');
 
   useEffect(() => {
     fetchData();
@@ -112,11 +116,12 @@ function LeagueControlPanel() {
     }
 
     try {
-      // Search all users - adjust this endpoint as needed
-      const response = await authAxios.get('/api/users/search', {
+      // Use unified search endpoint and extract players
+      const response = await authAxios.get('/api/search', {
         params: { query: editorSearchQuery }
       });
-      setSearchResults(response.data);
+      // Extract only the players from the unified search result
+      setSearchResults(response.data.players || []);
     } catch (err) {
       showMessage('error', 'Failed to search users');
     }
@@ -144,6 +149,40 @@ function LeagueControlPanel() {
       fetchData();
     } catch (err) {
       showMessage('error', err.response?.data || 'Failed to remove editor');
+    }
+  };
+
+  const handleRenameLeague = async () => {
+    if (!newLeagueName.trim()) {
+      showMessage('error', 'League name cannot be empty');
+      return;
+    }
+
+    try {
+      await authAxios.put(`/api/leagues/${leagueId}/name`, { name: newLeagueName });
+      showMessage('success', 'League renamed successfully!');
+      setShowRenameModal(false);
+      setNewLeagueName('');
+      fetchData();
+    } catch (err) {
+      showMessage('error', err.response?.data || 'Failed to rename league');
+    }
+  };
+
+  const handleDeleteLeague = async () => {
+    if (deleteConfirmText !== league.name) {
+      showMessage('error', 'League name does not match');
+      return;
+    }
+
+    try {
+      await authAxios.delete(`/api/leagues/${leagueId}`);
+      showMessage('success', 'League deleted successfully');
+      setShowDeleteModal(false);
+      // Redirect to leagues page after deletion
+      setTimeout(() => navigate('/leagues'), 1500);
+    } catch (err) {
+      showMessage('error', err.response?.data || 'Failed to delete league');
     }
   };
 
@@ -282,8 +321,32 @@ function LeagueControlPanel() {
           {activeSection === 'settings' && (
             <div className={styles.section}>
               <h2 className={styles.sectionTitle}>League Settings</h2>
-              <div className={styles.infoCard}>
-                <p>Additional league settings coming soon...</p>
+
+              <div className={styles.settingsCard}>
+                <h3>League Name</h3>
+                <p className={styles.currentValue}>{league.name}</p>
+                <button
+                  onClick={() => {
+                    setNewLeagueName(league.name);
+                    setShowRenameModal(true);
+                  }}
+                  className={styles.button}
+                >
+                  Rename League
+                </button>
+              </div>
+
+              <div className={styles.settingsCard}>
+                <h3>Danger Zone</h3>
+                <p className={styles.warningText}>
+                  Once you delete a league, there is no going back. Please be certain.
+                </p>
+                <button
+                  onClick={() => setShowDeleteModal(true)}
+                  className={styles.dangerButton}
+                >
+                  Delete League
+                </button>
               </div>
             </div>
           )}
@@ -360,6 +423,74 @@ function LeagueControlPanel() {
             <div className={styles.modalActions}>
               <button onClick={() => setShowAddEditorModal(false)} className={styles.cancelButton}>
                 Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showRenameModal && (
+        <div className={styles.modal} onClick={() => setShowRenameModal(false)}>
+          <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
+            <h2 className={styles.modalTitle}>Rename League</h2>
+            <div className={styles.formGroup}>
+              <label htmlFor="newLeagueName">New League Name</label>
+              <input
+                id="newLeagueName"
+                type="text"
+                value={newLeagueName}
+                onChange={(e) => setNewLeagueName(e.target.value)}
+                className={styles.input}
+                placeholder="Enter new league name"
+                autoFocus
+              />
+            </div>
+            <div className={styles.modalActions}>
+              <button onClick={() => setShowRenameModal(false)} className={styles.cancelButton}>
+                Cancel
+              </button>
+              <button onClick={handleRenameLeague} className={styles.submitButton}>
+                Rename
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showDeleteModal && (
+        <div className={styles.modal} onClick={() => setShowDeleteModal(false)}>
+          <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
+            <h2 className={styles.modalTitle}>Delete League</h2>
+            <div className={styles.warningBox}>
+              <p><strong>Warning:</strong> This action cannot be undone!</p>
+              <p>All league data, rankings, and tournament associations will be permanently deleted.</p>
+            </div>
+            <div className={styles.formGroup}>
+              <label htmlFor="deleteConfirm">
+                Type the league name "<strong>{league.name}</strong>" to confirm:
+              </label>
+              <input
+                id="deleteConfirm"
+                type="text"
+                value={deleteConfirmText}
+                onChange={(e) => setDeleteConfirmText(e.target.value)}
+                className={styles.input}
+                placeholder={league.name}
+              />
+            </div>
+            <div className={styles.modalActions}>
+              <button onClick={() => {
+                setShowDeleteModal(false);
+                setDeleteConfirmText('');
+              }} className={styles.cancelButton}>
+                Cancel
+              </button>
+              <button
+                onClick={handleDeleteLeague}
+                className={styles.dangerButton}
+                disabled={deleteConfirmText !== league.name}
+              >
+                Delete League
               </button>
             </div>
           </div>

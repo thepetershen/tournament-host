@@ -20,6 +20,7 @@ import LoginSuccessPage from './Pages/LoginAndRegistration/LoginSuccessPage';
 import LoginPage from './Pages/LoginAndRegistration/LoginPage';
 import ForgotPasswordPage from './Pages/LoginAndRegistration/ForgotPasswordPage';
 import ResetPasswordPage from './Pages/LoginAndRegistration/ResetPasswordPage';
+import ProfilePage from './Pages/Profile/ProfilePage';
 
 
 const router = createBrowserRouter([
@@ -42,7 +43,8 @@ const router = createBrowserRouter([
       { path: "login-success", element: <LoginSuccessPage/> },
       { path: "login", element: <LoginPage/> },
       { path: "forgot-password", element: <ForgotPasswordPage/> },
-      { path: "reset-password", element: <ResetPasswordPage/> }
+      { path: "reset-password", element: <ResetPasswordPage/> },
+      { path: "profile", element: <ProfilePage/> }
       // Add more child routes here
     ],
   },

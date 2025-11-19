@@ -444,6 +444,77 @@
     box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
 }
 
+/* Settings Page */
+.settingsCard {
+    padding: 24px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    margin-bottom: 20px;
+}
+
+.settingsCard h3 {
+    font-size: 1.3rem;
+    font-weight: 700;
+    color: #2c3e50;
+    margin: 0 0 12px;
+}
+
+.currentValue {
+    font-size: 1.1rem;
+    color: #555;
+    margin-bottom: 16px;
+}
+
+.warningText {
+    color: #e74c3c;
+    margin-bottom: 16px;
+    font-size: 14px;
+}
+
+.warningBox {
+    background: #fff3cd;
+    border: 2px solid #ffc107;
+    border-radius: 6px;
+    padding: 16px;
+    margin-bottom: 20px;
+}
+
+.warningBox p {
+    margin: 0 0 8px;
+    color: #856404;
+}
+
+.warningBox p:last-child {
+    margin-bottom: 0;
+}
+
+.button {
+    background: #667eea;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 6px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.button:hover {
+    background: #5568d3;
+    transform: translateY(-1px);
+}
+
+.dangerButton:disabled {
+    background: #ccc;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.dangerButton:disabled:hover {
+    background: #ccc;
+    transform: none;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
     .mainContent {

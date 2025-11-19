@@ -126,6 +126,21 @@
 .buttonGroup {
   display: flex;
   gap: 12px;
+  align-items: center;
+}
+
+.profileLink {
+  color: #fff;
+  text-decoration: none;
+  padding: 8px 18px;
+  border-radius: 6px;
+  font-size: 1rem;
+  font-weight: 500;
+  transition: background 0.2s;
+}
+
+.profileLink:hover {
+  background: rgba(255, 255, 255, 0.1);
 }
 
 .loginButton, .logoutButton {

@@ -128,7 +128,10 @@ function TopBar({ onMenuToggle }) {
           {!isLoggedIn ? (
             <button className={styles.loginButton} onClick={handleLogin}>Login</button>
           ) : (
-            <button className={styles.logoutButton} onClick={handleLogout}>Logout</button>
+            <>
+              <Link to="/profile" className={styles.profileLink}>Profile</Link>
+              <button className={styles.logoutButton} onClick={handleLogout}>Logout</button>
+            </>
           )}
         </div>
       </div>
