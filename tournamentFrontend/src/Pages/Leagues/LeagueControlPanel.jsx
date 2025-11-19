@@ -304,13 +304,19 @@ function LeagueControlPanel() {
                           <PlayerLink player={editor} />
                         </span>
                         <span className={styles.editorName}>@{editor.username}</span>
+                        {editor.id === league.owner?.id && (
+                          <span className={styles.ownerBadge}>(Owner)</span>
+                        )}
                       </div>
-                      <button
-                        onClick={() => handleRemoveEditor(editor.id)}
-                        className={styles.dangerButton}
-                      >
-                        Remove
-                      </button>
+                      {/* Only show Remove button if current user is owner AND editor is not the owner */}
+                      {isOwner() && editor.id !== league.owner?.id && (
+                        <button
+                          onClick={() => handleRemoveEditor(editor.id)}
+                          className={styles.dangerButton}
+                        >
+                          Remove
+                        </button>
+                      )}
                     </div>
                   ))}
                 </div>

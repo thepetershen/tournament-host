@@ -1,7 +1,7 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import styles from "./NavbarStyle.module.css";
-import logo from "./PLACEHOLDER LOGO.png";
+import logo from "./TournamentHostLogo.jpg";
 
 function Navbar({ isOpen, onClose }) {
     return (

@@ -21,6 +21,7 @@ import LoginPage from './Pages/LoginAndRegistration/LoginPage';
 import ForgotPasswordPage from './Pages/LoginAndRegistration/ForgotPasswordPage';
 import ResetPasswordPage from './Pages/LoginAndRegistration/ResetPasswordPage';
 import ProfilePage from './Pages/Profile/ProfilePage';
+import CreateTournamentPage from './Pages/CreateTournament/CreateTournamentPage';
 
 
 const router = createBrowserRouter([
@@ -44,7 +45,8 @@ const router = createBrowserRouter([
       { path: "login", element: <LoginPage/> },
       { path: "forgot-password", element: <ForgotPasswordPage/> },
       { path: "reset-password", element: <ResetPasswordPage/> },
-      { path: "profile", element: <ProfilePage/> }
+      { path: "profile", element: <ProfilePage/> },
+      { path: "create-tournament", element: <CreateTournamentPage/> }
       // Add more child routes here
     ],
   },

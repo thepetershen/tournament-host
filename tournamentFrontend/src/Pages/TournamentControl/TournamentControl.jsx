@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useAuth } from '../../contexts/AuthContext';
 import authAxios from '../../utils/authAxios';
 import PlayerLink from '../../Components/PlayerLink/PlayerLink';
 import styles from './TournamentControl.module.css';
@@ -7,6 +8,7 @@ import styles from './TournamentControl.module.css';
 function TournamentControl() {
   const { tournamentId } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   // State
   const [tournament, setTournament] = useState(null);
@@ -584,6 +586,36 @@ function TournamentControl() {
     }
   };
 
+  const handleAutoSeed = async () => {
+    const numberOfSeeds = prompt(
+      `How many players should be seeded? (1-${eventPlayers.length})`,
+      Math.min(4, eventPlayers.length).toString()
+    );
+
+    if (!numberOfSeeds) return; // User cancelled
+
+    const seedCount = parseInt(numberOfSeeds);
+    if (isNaN(seedCount) || seedCount < 1 || seedCount > eventPlayers.length) {
+      showMessage('error', `Please enter a number between 1 and ${eventPlayers.length}`);
+      return;
+    }
+
+    try {
+      await authAxios.post(
+        `/api/tournaments/${tournamentId}/event/${selectedEvent.id}/seeds/auto`,
+        { numberOfSeeds: seedCount }
+      );
+      showMessage('success', `Auto-seeded ${seedCount} players successfully!`);
+
+      // Refresh seeds from server
+      const seedsRes = await authAxios.get(`/api/tournaments/${tournamentId}/event/${selectedEvent.id}/seeds`);
+      setSeeds(seedsRes.data || {});
+      setManualSeeds({});
+    } catch (err) {
+      showMessage('error', err.response?.data || 'Failed to auto-seed players');
+    }
+  };
+
   // Team creation for partner matching
   const handleCreateTeam = async (player1Id, player2Id) => {
     if (!player2Id) {
@@ -699,6 +731,36 @@ function TournamentControl() {
       setManualTeamSeeds({});
     } catch (err) {
       showMessage('error', err.response?.data || 'Failed to clear team seeds');
+    }
+  };
+
+  const handleAutoSeedTeams = async () => {
+    const numberOfSeeds = prompt(
+      `How many teams should be seeded? (1-${teams.length})`,
+      Math.min(4, teams.length).toString()
+    );
+
+    if (!numberOfSeeds) return; // User cancelled
+
+    const seedCount = parseInt(numberOfSeeds);
+    if (isNaN(seedCount) || seedCount < 1 || seedCount > teams.length) {
+      showMessage('error', `Please enter a number between 1 and ${teams.length}`);
+      return;
+    }
+
+    try {
+      await authAxios.post(
+        `/api/tournaments/${tournamentId}/event/${selectedEvent.id}/seeds/teams/auto`,
+        { numberOfSeeds: seedCount }
+      );
+      showMessage('success', `Auto-seeded ${seedCount} teams successfully!`);
+
+      // Refresh seeds from server
+      const seedsRes = await authAxios.get(`/api/tournaments/${tournamentId}/event/${selectedEvent.id}/seeds/teams`);
+      setTeamSeeds(seedsRes.data || {});
+      setManualTeamSeeds({});
+    } catch (err) {
+      showMessage('error', err.response?.data || 'Failed to auto-seed teams');
     }
   };
 
@@ -1394,6 +1456,9 @@ function TournamentControl() {
                     // Team seeding UI
                     <>
                       <div className={styles.seedingControls}>
+                        <button onClick={handleAutoSeedTeams} className={styles.secondaryButton}>
+                          Auto-Seed Teams
+                        </button>
                         <button onClick={handleSaveTeamSeeds} className={styles.primaryButton}>
                           Save Team Seeds
                         </button>
@@ -1435,6 +1500,9 @@ function TournamentControl() {
                     // Player seeding UI
                     <>
                       <div className={styles.seedingControls}>
+                        <button onClick={handleAutoSeed} className={styles.secondaryButton}>
+                          Auto-Seed Players
+                        </button>
                         <button onClick={handleSaveSeeds} className={styles.primaryButton}>
                           Save Seeds
                         </button>
@@ -1683,15 +1751,25 @@ function TournamentControl() {
                     <tbody>
                       {editors.map(editor => (
                         <tr key={editor.id}>
-                          <td><PlayerLink player={editor} /></td>
+                          <td>
+                            <PlayerLink player={editor} />
+                            {editor.id === tournament?.owner?.id && (
+                              <span className={styles.ownerBadge}> (Owner)</span>
+                            )}
+                          </td>
                           <td>@{editor.username}</td>
                           <td>
-                            <button
-                              className={styles.dangerButtonSmall}
-                              onClick={() => handleRemoveEditor(editor.id)}
-                            >
-                              Remove
-                            </button>
+                            {/* Only show Remove button if current user is owner AND editor is not the owner */}
+                            {user && tournament?.owner?.id === user.id && editor.id !== tournament?.owner?.id ? (
+                              <button
+                                className={styles.dangerButtonSmall}
+                                onClick={() => handleRemoveEditor(editor.id)}
+                              >
+                                Remove
+                              </button>
+                            ) : (
+                              <span style={{color: '#999'}}>—</span>
+                            )}
                           </td>
                         </tr>
                       ))}

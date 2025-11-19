@@ -2,6 +2,8 @@ package com.tournamenthost.connect.frontend.with.backend.Service;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.Date;
@@ -43,6 +45,9 @@ import com.tournamenthost.connect.frontend.with.backend.util.TournamentUtil;
 
 @Service
 public class TournamentService {
+
+    private static final Logger log = LoggerFactory.getLogger(TournamentService.class);
+    private static final int MAX_RECURSION_DEPTH = 100;
 
     @Autowired
     private TournamentRepository tournamentRepo;
@@ -473,7 +478,16 @@ public class TournamentService {
             int matchAmountForCurRound = matchAmount;
             List<List<Match>> eventInNestedArr = new ArrayList<>();
             List<Match> allMatch = new ArrayList<>();
+            int iterationCount = 0;
+            final int MAX_ROUNDS = 50; // Safety limit for reasonable tournament sizes (2^50 is more than enough)
+
             while (matchAmountForCurRound >= 1) {
+                if (++iterationCount > MAX_ROUNDS) {
+                    log.error("Single elimination bracket generation exceeded max rounds ({}) for event {}. " +
+                              "Initial match amount: {}", MAX_ROUNDS, event.getId(), matchAmount);
+                    throw new IllegalStateException("Tournament bracket generation exceeded safe iteration limit.");
+                }
+
                 List<Match> curRoundMatches = new ArrayList<>();
                 for (int i = 0; i < matchAmountForCurRound; i++) {
                     Match curMatch = new Match();
@@ -1550,7 +1564,16 @@ public class TournamentService {
         }
 
         // After feed-ins stop, continue creating progression rounds until we reach 1 player
+        int progressionIterations = 0;
+        final int MAX_PROGRESSION_ROUNDS = 50; // Safety limit for reasonable tournament sizes
+
         while (progressionMatchCount > 1) {
+            if (++progressionIterations > MAX_PROGRESSION_ROUNDS) {
+                log.error("Double elimination losers bracket progression exceeded max rounds ({}) for event {}. " +
+                          "Current progression match count: {}", MAX_PROGRESSION_ROUNDS, event.getId(), progressionMatchCount);
+                throw new IllegalStateException("Tournament bracket generation exceeded safe iteration limit.");
+            }
+
             progressionMatchCount = progressionMatchCount / 2;
 
             DoubleElimRound progressionRound = new DoubleElimRound(round, BracketType.LOSERS);
@@ -1576,6 +1599,15 @@ public class TournamentService {
      * This handles cases where odd numbers of players feed into losers bracket
      */
     private void autoAdvanceSinglePlayersInLosersBracket(DoubleElimEvent event) {
+        autoAdvanceSinglePlayersInLosersBracket(event, 0);
+    }
+
+    private void autoAdvanceSinglePlayersInLosersBracket(DoubleElimEvent event, int depth) {
+        if (depth > MAX_RECURSION_DEPTH) {
+            log.error("Max recursion depth ({}) reached for autoAdvanceSinglePlayersInLosersBracket in event {}. " +
+                      "This indicates a potential infinite loop in bracket logic.", MAX_RECURSION_DEPTH, event.getId());
+            throw new IllegalStateException("Tournament bracket logic exceeded safe recursion limit. Please contact support.");
+        }
         List<DoubleElimRound> losersRounds = event.getLosersBracket();
 
         for (int roundIndex = 0; roundIndex < losersRounds.size(); roundIndex++) {
@@ -1646,7 +1678,7 @@ public class TournamentService {
         }
 
         if (hasMoreSinglePlayerMatches) {
-            autoAdvanceSinglePlayersInLosersBracket(event);
+            autoAdvanceSinglePlayersInLosersBracket(event, depth + 1);
         }
     }
 
@@ -1655,6 +1687,15 @@ public class TournamentService {
      * This handles cases where odd numbers of teams feed into losers bracket
      */
     private void autoAdvanceSingleTeamsInLosersBracket(DoubleElimEvent event) {
+        autoAdvanceSingleTeamsInLosersBracket(event, 0);
+    }
+
+    private void autoAdvanceSingleTeamsInLosersBracket(DoubleElimEvent event, int depth) {
+        if (depth > MAX_RECURSION_DEPTH) {
+            log.error("Max recursion depth ({}) reached for autoAdvanceSingleTeamsInLosersBracket in event {}. " +
+                      "This indicates a potential infinite loop in bracket logic.", MAX_RECURSION_DEPTH, event.getId());
+            throw new IllegalStateException("Tournament bracket logic exceeded safe recursion limit. Please contact support.");
+        }
         List<DoubleElimRound> losersRounds = event.getLosersBracket();
 
         for (int roundIndex = 0; roundIndex < losersRounds.size(); roundIndex++) {
@@ -1725,7 +1766,7 @@ public class TournamentService {
         }
 
         if (hasMoreSingleTeamMatches) {
-            autoAdvanceSingleTeamsInLosersBracket(event);
+            autoAdvanceSingleTeamsInLosersBracket(event, depth + 1);
         }
     }
 

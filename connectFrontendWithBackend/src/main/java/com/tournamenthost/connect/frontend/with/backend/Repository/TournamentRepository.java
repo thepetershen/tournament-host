@@ -10,15 +10,9 @@ import com.tournamenthost.connect.frontend.with.backend.Model.Tournament;
 import com.tournamenthost.connect.frontend.with.backend.Model.User;
 
 public interface TournamentRepository extends CrudRepository<Tournament, Long>{
-    default boolean existsByNameIgnoreCaseAndSpaces(String name) {
-        for (Tournament t : findAll()) {
-            if (t.getName() != null &&
-                t.getName().replaceAll("\\s+", "").equalsIgnoreCase(name.replaceAll("\\s+", ""))) {
-                return true;
-            }
-        }
-        return false;
-    }
+    @Query("SELECT CASE WHEN COUNT(t) > 0 THEN true ELSE false END " +
+           "FROM Tournament t WHERE LOWER(REPLACE(t.name, ' ', '')) = LOWER(REPLACE(:name, ' ', ''))")
+    boolean existsByNameIgnoreCaseAndSpaces(@Param("name") String name);
 
     @Query("SELECT t FROM Tournament t WHERE LOWER(REPLACE(t.name, ' ', '')) LIKE LOWER(CONCAT('%', REPLACE(:name, ' ', ''), '%'))")
     List<Tournament> findByNameContainingIgnoreCaseAndSpaces(@Param("name") String name);

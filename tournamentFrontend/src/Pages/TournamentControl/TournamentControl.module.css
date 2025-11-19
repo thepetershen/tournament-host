@@ -168,6 +168,15 @@
     text-align: center;
 }
 
+.ownerBadge {
+    background: #667eea;
+    color: white;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
 .eventSelector {
     width: 100%;
     padding: 12px;

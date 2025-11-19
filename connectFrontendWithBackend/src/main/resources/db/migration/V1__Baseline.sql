@@ -1,0 +1,21 @@
+-- Flyway Baseline Migration
+-- This file represents the current state of your existing database
+-- Since baseline-on-migrate=true, Flyway will NOT execute this file
+-- It's here for documentation purposes only
+
+-- Your existing database already has all these tables:
+-- - users
+-- - tournament
+-- - base_event (with single_elim_event, round_robin_event, double_elim_event)
+-- - match
+-- - team
+-- - league
+-- - password_reset_token
+-- - event_registration
+-- - double_elim_round
+-- - round
+-- - player_schedule
+-- - points_distribution
+-- - league_player_ranking
+
+-- Flyway will mark this as version 1 (already applied) and start from V2 onwards
