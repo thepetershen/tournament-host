@@ -7,8 +7,7 @@
 
 .container {
     padding: 5px 15px;
-    width: fit-content;
-    min-width: 240px;
+    width: 300px;
     border-radius: 12px;
     background-color: white;      /* Light gray background */
     border: 1.5px solid #b0b0b0;   /* Subtle border */
@@ -19,14 +18,16 @@
     grid-template-columns: 2fr 1fr;
     grid-template-rows: 1fr 1fr;
     box-shadow: 0 2px 8px rgba(0,0,0,0.07);
-    
+
 }
 
 .matchBottom,
 .matchTop{
     padding-left: 10px;
     padding-right: 30px;
-    
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .matchTop{

@@ -37,7 +37,7 @@ function createMatchesForRound(roundDraw, isFirstRound,curSpacing) {
         const matchType = match.matchType || 'SINGLES';
 
         toDisplay.push(
-            <SpacingContext.Provider value = {MATCH_HEIGHT} key={`match-${index}`}>
+            <SpacingContext.Provider value = {TRUE_MATCH_HEIGHT} key={`match-${index}`}>
                 <SingleElimEventMatch
                     playerTop={playerTop}
                     playerBottom={playerBottom}

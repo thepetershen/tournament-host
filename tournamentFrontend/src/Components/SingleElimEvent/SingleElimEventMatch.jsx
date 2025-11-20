@@ -114,15 +114,14 @@ function SingleElimEventMatch({ playerTop = "BYE", playerBottom = "BYE", winner,
                 <div className={styles.matchRightConnector}></div>
             )}
 
-             <div className={styles.container} style = {{height: MATCH_SPACING+"px"}}>
+             <div className={styles.container} style = {{height: MATCH_SPACING+"px", width: matchType === "DOUBLES" ? "380px" : "300px"}}>
                 <div
                     className={styles.matchTop}
                     style={{
                         fontWeight: isTopWinner ? "bold" : "normal",
                         color: isTopWinner ? "#28a745" : (isTopLoser ? "#dc3545" : "#333"),
                         backgroundColor: isTopWinner ? "rgba(40, 167, 69, 0.1)" : (isTopLoser ? "rgba(220, 53, 69, 0.05)" : "transparent"),
-                        transition: "all 0.3s ease",
-                        fontSize: matchType === "DOUBLES" ? "11px" : "14px"
+                        transition: "all 0.3s ease"
                     }}
                 >
                     {renderPlayerName(playerTop)}
@@ -133,8 +132,7 @@ function SingleElimEventMatch({ playerTop = "BYE", playerBottom = "BYE", winner,
                         fontWeight: isBottomWinner ? "bold" : "normal",
                         color: isBottomWinner ? "#28a745" : (isBottomLoser ? "#dc3545" : "#333"),
                         backgroundColor: isBottomWinner ? "rgba(40, 167, 69, 0.1)" : (isBottomLoser ? "rgba(220, 53, 69, 0.05)" : "transparent"),
-                        transition: "all 0.3s ease",
-                        fontSize: matchType === "DOUBLES" ? "11px" : "14px"
+                        transition: "all 0.3s ease"
                     }}
                 >
                     {renderPlayerName(playerBottom)}
