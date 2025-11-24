@@ -52,13 +52,14 @@ function LoginPage() {
       <h2>Login</h2>
       <form onSubmit={handleSubmit} className={styles.loginForm}>
         <label>
-          Username:
+          Email:
           <input
-            type="text"
+            type="email"
             value={username}
             onChange={(e) => setUsername(e.target.value)}
             required
             className={styles.input}
+            placeholder="your-email@example.com"
           />
         </label>
         <label>

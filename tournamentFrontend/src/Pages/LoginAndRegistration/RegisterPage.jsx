@@ -62,13 +62,14 @@ const RegisterPage = () => {
           />
         </label>
         <label>
-          Username:
+          Email:
           <input
-            type="text"
+            type="email"
             value={username}
             onChange={e => setUsername(e.target.value)}
             required
             className={styles.input}
+            placeholder="your-email@example.com"
           />
         </label>
         <label>
