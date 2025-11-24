@@ -23,7 +23,7 @@ public class SecurityConfiguration {
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final RateLimitingFilter rateLimitingFilter;
 
-    @Value("${app.frontend.url}")
+    @Value("${app.frontend.url:http://localhost:5173}")
     private String frontendUrl;
 
     public SecurityConfiguration(
@@ -58,7 +58,12 @@ public class SecurityConfiguration {
     CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
 
-        configuration.setAllowedOrigins(List.of(frontendUrl));
+        // Allow multiple origins: production frontend + localhost for development
+        configuration.setAllowedOrigins(List.of(
+            frontendUrl,
+            "http://localhost:5173",
+            "http://localhost:3000"
+        ));
         configuration.setAllowedMethods(List.of("GET","POST","PUT","DELETE","PATCH","OPTIONS"));
         configuration.setAllowedHeaders(List.of("Authorization","Content-Type"));
         configuration.setAllowCredentials(true);
