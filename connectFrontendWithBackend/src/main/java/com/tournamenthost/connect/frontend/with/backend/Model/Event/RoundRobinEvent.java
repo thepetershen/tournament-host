@@ -2,6 +2,7 @@ package com.tournamenthost.connect.frontend.with.backend.Model.Event;
 
 import java.util.ArrayList;
 import java.util.List;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.tournamenthost.connect.frontend.with.backend.Model.Tournament;
 import com.tournamenthost.connect.frontend.with.backend.Model.User;
 import jakarta.persistence.CascadeType;
@@ -13,29 +14,30 @@ import jakarta.persistence.OneToMany;
 @DiscriminatorValue("ROUND_ROBIN")
 public class RoundRobinEvent extends BaseEvent {
     @OneToMany(mappedBy = "event", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<PlayerSchedule> playerSchedules;
+    @JsonIgnore  // Prevent circular reference when serializing event
+    private List<TeamSchedule> teamSchedules;
 
-    public List<PlayerSchedule> getPlayerSchedules() {
-        return playerSchedules;
+    public List<TeamSchedule> getTeamSchedules() {
+        return teamSchedules;
     }
 
-    public void addPlayerSchedule(PlayerSchedule playerSchedule) {
-        playerSchedules.add(playerSchedule);
+    public void addTeamSchedule(TeamSchedule teamSchedule) {
+        teamSchedules.add(teamSchedule);
     }
 
-    public void addPlayerSchedule(List<PlayerSchedule> playerSchedules) {
-        for (PlayerSchedule schedule : playerSchedules) {
-            this.addPlayerSchedule(schedule);
+    public void addTeamSchedule(List<TeamSchedule> teamSchedules) {
+        for (TeamSchedule schedule : teamSchedules) {
+            this.addTeamSchedule(schedule);
         }
     }
 
     public RoundRobinEvent() {
         super();
-        this.playerSchedules = new ArrayList<>();
+        this.teamSchedules = new ArrayList<>();
     }
 
     public RoundRobinEvent(String name, List<User> players, Tournament tournament, int index) {
         super(name, players, tournament, index);
-        this.playerSchedules = new ArrayList<>();
+        this.teamSchedules = new ArrayList<>();
     }
 }

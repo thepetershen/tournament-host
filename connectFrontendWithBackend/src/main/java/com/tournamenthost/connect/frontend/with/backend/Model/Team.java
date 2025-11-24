@@ -1,5 +1,6 @@
 package com.tournamenthost.connect.frontend.with.backend.Model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import com.tournamenthost.connect.frontend.with.backend.Model.Event.BaseEvent;
 
@@ -24,6 +25,7 @@ public class Team {
 
     @ManyToOne
     @JoinColumn(name = "event_id")
+    @JsonIgnore  // Prevent circular reference: Team -> Event -> teams
     private BaseEvent event;
 
     // Constructors

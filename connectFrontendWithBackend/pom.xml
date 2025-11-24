@@ -10,9 +10,9 @@
 	</parent>
 	<groupId>com.tournamenthost</groupId>
 	<artifactId>connect-frontend-with-backend</artifactId>
-	<version>0.0.1-SNAPSHOT</version>
+	<version>1.0.0</version>
 	<name>connect-frontend-with-backend</name>
-	<description>connect frontend with backend</description>
+	<description>Tournament Host - Complete tournament management system with round robin, single elimination, and double elimination brackets</description>
 	<url/>
 	<licenses>
 		<license/>

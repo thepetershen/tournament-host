@@ -35,6 +35,7 @@ public class Tournament implements Comparable<Tournament> {
 
     // One tournament can have many events
     @OneToMany(mappedBy = "tournament", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OrderBy("index ASC")
     private List<BaseEvent> events;
 
     private String message;
@@ -90,7 +91,6 @@ public class Tournament implements Comparable<Tournament> {
 
     public boolean canUserEdit(User user) {
         if (user == null) return false;
-        System.out.println(user.toString());
         return user.equals(owner) || authorizedEditors.contains(user);
     }
 

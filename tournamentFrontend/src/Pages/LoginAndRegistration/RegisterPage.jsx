@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import styles from './RegisterPage.module.css';
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
+
 const RegisterPage = () => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -14,7 +16,7 @@ const RegisterPage = () => {
     setError('');
     try {
       // Register
-      const registerRes = await fetch('http://localhost:8080/auth/signup', {
+      const registerRes = await fetch(`${API_BASE_URL}/auth/signup`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username, password, name }),
@@ -24,7 +26,7 @@ const RegisterPage = () => {
         throw new Error(err || 'Registration failed');
       }
       // Login
-      const loginRes = await fetch('http://localhost:8080/auth/login', {
+      const loginRes = await fetch(`${API_BASE_URL}/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username, password }),

@@ -1,43 +1,46 @@
 package com.tournamenthost.connect.frontend.with.backend.Model.Event;
 
 import java.util.*;
-import com.tournamenthost.connect.frontend.with.backend.Model.User;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.tournamenthost.connect.frontend.with.backend.Model.Team;
 import com.tournamenthost.connect.frontend.with.backend.Model.Match;
 import jakarta.persistence.*;
 
 @Entity
-@Table(name = "player_schedules")
-public class PlayerSchedule {
+@Table(name = "team_schedules")
+public class TeamSchedule {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     @ManyToOne
-    @JoinColumn(name = "player_id")
-    private User player;
+    @JoinColumn(name = "team_id")
+    private Team team;
 
     @ManyToOne
     @JoinColumn(name = "event_id")
+    @JsonIgnore  // Prevent circular reference: TeamSchedule -> Event -> TeamSchedule
     private RoundRobinEvent event;
 
     @ManyToMany
     @JoinTable(
-        name = "schedule_matches",
+        name = "team_schedule_matches",
         joinColumns = @JoinColumn(name = "schedule_id"),
         inverseJoinColumns = @JoinColumn(name = "match_id")
     )
+    @JsonIgnore  // Prevent circular reference: TeamSchedule -> Match -> potentially back to schedule
     private Set<Match> matches;
 
     public Long getId() {
         return id;
     }
 
-    public User getPlayer() {
-        return player;
+    public Team getTeam() {
+        return team;
     }
 
-    public void setPlayer(User player) {
-        this.player = player;
+    public void setTeam(Team team) {
+        this.team = team;
     }
 
     public RoundRobinEvent getEvent() {
@@ -60,12 +63,12 @@ public class PlayerSchedule {
         matches.add(match);
     }
 
-    public PlayerSchedule() {
+    public TeamSchedule() {
         this.matches = new HashSet<>();
     }
 
-    public PlayerSchedule(User player, RoundRobinEvent event) {
-        this.player = player;
+    public TeamSchedule(Team team, RoundRobinEvent event) {
+        this.team = team;
         this.event = event;
         this.matches = new HashSet<>();
     }

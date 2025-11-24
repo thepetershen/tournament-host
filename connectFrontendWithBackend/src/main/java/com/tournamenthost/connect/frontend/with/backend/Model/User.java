@@ -5,6 +5,7 @@ import java.util.Collection;
 import java.util.Date;
 import java.util.List;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 import org.springframework.security.core.GrantedAuthority;
@@ -33,6 +34,7 @@ public class User implements UserDetails, Comparable<User> {
     private String name;
 
     @Column(nullable = false)
+    @JsonIgnore  // Don't serialize password in JSON responses
     private String password;
 
     @CreationTimestamp
@@ -44,6 +46,7 @@ public class User implements UserDetails, Comparable<User> {
     private Date updatedAt;
 
     @ManyToMany
+    @JsonIgnore  // Prevent circular reference: User -> Tournament -> Event -> User
     private List<Tournament> tournaments = new ArrayList<>();
 
     public User() {}

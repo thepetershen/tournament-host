@@ -40,7 +40,8 @@ import com.tournamenthost.connect.frontend.with.backend.Model.Event.RoundRobinEv
 import com.tournamenthost.connect.frontend.with.backend.Model.Event.DoubleElimEvent;
 import com.tournamenthost.connect.frontend.with.backend.Model.Event.DoubleElimRound;
 import com.tournamenthost.connect.frontend.with.backend.Model.Event.BracketType;
-import com.tournamenthost.connect.frontend.with.backend.Model.Event.PlayerSchedule;
+import com.tournamenthost.connect.frontend.with.backend.Model.Event.TeamSchedule;
+import com.tournamenthost.connect.frontend.with.backend.Repository.TeamScheduleRepository;
 import com.tournamenthost.connect.frontend.with.backend.util.TournamentUtil;
 
 @Service
@@ -72,6 +73,9 @@ public class TournamentService {
 
     @Autowired
     private TeamRepository teamRepo;
+
+    @Autowired
+    private TeamScheduleRepository teamScheduleRepo;
 
     public Tournament createTournament(String name, User owner, String message, Date begin, Date end, String location) {
         if (tournamentRepo.existsByNameIgnoreCaseAndSpaces(name)) {
@@ -283,11 +287,10 @@ public class TournamentService {
                 }
             }
         } else if (event instanceof RoundRobinEvent roundRobin) {
-            // Get all matches for the player
-            for (PlayerSchedule schedule : roundRobin.getPlayerSchedules()) {
-                if (schedule.getPlayer().equals(player)) {
+            // Get all matches for the player's team(s)
+            for (TeamSchedule schedule : roundRobin.getTeamSchedules()) {
+                if (schedule.getTeam().hasPlayer(player)) {
                     playerMatches.addAll(schedule.getMatches());
-                    break;
                 }
             }
         } else if (event instanceof DoubleElimEvent doubleElim) {
@@ -376,7 +379,7 @@ public class TournamentService {
             return answer;
         } else if (event instanceof RoundRobinEvent roundRobin) {
             List<Match> answer = new ArrayList<>();
-            for (PlayerSchedule schedule : roundRobin.getPlayerSchedules()) {
+            for (TeamSchedule schedule : roundRobin.getTeamSchedules()) {
                 answer.addAll(schedule.getMatches());
             }
             return answer.stream().distinct().toList();
@@ -440,12 +443,21 @@ public class TournamentService {
             throw new IllegalArgumentException("This event has already been initialized, please deinitialize it first");
         }
 
-        // Check participant count based on match type
-        boolean isDoubles = event.getMatchType() == com.tournamenthost.connect.frontend.with.backend.Model.MatchType.DOUBLES;
+        // Check if teams exist for this event - if so, this is a doubles event
+        List<Team> teams = teamRepo.findByEvent(event);
+        boolean hasTeams = teams != null && !teams.isEmpty();
+
+        // If teams exist but matchType is not DOUBLES, auto-correct it
+        if (hasTeams && event.getMatchType() != com.tournamenthost.connect.frontend.with.backend.Model.MatchType.DOUBLES) {
+            event.setMatchType(com.tournamenthost.connect.frontend.with.backend.Model.MatchType.DOUBLES);
+            eventRepo.save(event);
+        }
+
+        // Check participant count based on match type (or presence of teams)
+        boolean isDoubles = hasTeams || event.getMatchType() == com.tournamenthost.connect.frontend.with.backend.Model.MatchType.DOUBLES;
 
         if (isDoubles) {
             // For doubles events, check team count
-            List<Team> teams = teamRepo.findByEvent(event);
             if (teams.size() <= 2) {
                 throw new IllegalArgumentException("There are too few teams. Doubles events require at least 3 teams");
             }
@@ -465,8 +477,7 @@ public class TournamentService {
 
             int matchAmount;
             if (isDoubles) {
-                // For doubles, count teams instead of players
-                List<Team> teams = teamRepo.findByEvent(event);
+                // For doubles, count teams instead of players (teams already loaded above)
                 if (teams.size() <= 2) {
                     throw new IllegalArgumentException("There are too few teams. Doubles events require at least 3 teams");
                 }
@@ -504,8 +515,7 @@ public class TournamentService {
             List<Match> bottomRoundMatches = eventInNestedArr.get(0);
 
             if (isDoubles) {
-                // Team-based initialization
-                List<Team> teams = teamRepo.findByEvent(event);
+                // Team-based initialization (teams already loaded above)
                 Map<Long, Integer> teamSeeds = event.getTeamSeeds();
                 if (teamSeeds == null) {
                     teamSeeds = new HashMap<>();
@@ -613,11 +623,17 @@ public class TournamentService {
             List<Match> allMatches = new ArrayList<>();
 
             if (isDoubles) {
-                // Team-based round robin: each team plays every other team
-                List<Team> teams = teamRepo.findByEvent(event);
+                // Team-based round robin: each team plays every other team (teams already loaded above)
 
                 if (teams.size() <= 2) {
                     throw new IllegalArgumentException("There are too few teams. Doubles round robin events require at least 3 teams");
+                }
+
+                // Create a TeamSchedule for each team
+                List<TeamSchedule> teamSchedules = new ArrayList<>();
+                for (Team team : teams) {
+                    TeamSchedule schedule = new TeamSchedule(team, roundRobin);
+                    teamSchedules.add(schedule);
                 }
 
                 // Generate matches: each team vs every other team
@@ -634,40 +650,54 @@ public class TournamentService {
                         match.setMatchType(event.getMatchType());
                         match.setGamesRequiredToWin(event.getGamesRequiredToWin());
                         allMatches.add(match);
+
+                        // Add match to both teams' schedules
+                        teamSchedules.get(i).addMatch(match);
+                        teamSchedules.get(j).addMatch(match);
                     }
                 }
 
-                // Save matches
+                // Save matches first
                 matchRepo.saveAll(allMatches);
+
+                // Add all team schedules to the event
+                roundRobin.addTeamSchedule(teamSchedules);
                 eventRepo.save(roundRobin);
             } else {
                 // Player-based round robin: each player plays every other player
-                List<PlayerSchedule> playerSchedules = new ArrayList<>();
-
-                // Create a PlayerSchedule for each player
+                // Create single-player teams for each player
+                List<Team> singlePlayerTeams = new ArrayList<>();
                 for (User player : players) {
-                    PlayerSchedule schedule = new PlayerSchedule(player, roundRobin);
-                    playerSchedules.add(schedule);
+                    Team team = new Team(player, TeamType.SINGLES, roundRobin);
+                    singlePlayerTeams.add(team);
+                }
+                teamRepo.saveAll(singlePlayerTeams);
+
+                // Create a TeamSchedule for each team
+                List<TeamSchedule> teamSchedules = new ArrayList<>();
+                for (Team team : singlePlayerTeams) {
+                    TeamSchedule schedule = new TeamSchedule(team, roundRobin);
+                    teamSchedules.add(schedule);
                 }
 
-                // Generate matches: each player vs every other player
-                for (int i = 0; i < players.size(); i++) {
-                    for (int j = i + 1; j < players.size(); j++) {
-                        User playerA = players.get(i);
-                        User playerB = players.get(j);
+                // Generate matches: each team vs every other team
+                for (int i = 0; i < singlePlayerTeams.size(); i++) {
+                    for (int j = i + 1; j < singlePlayerTeams.size(); j++) {
+                        Team teamA = singlePlayerTeams.get(i);
+                        Team teamB = singlePlayerTeams.get(j);
 
                         // Create the match
                         Match match = new Match();
-                        match.setPlayerA(playerA);
-                        match.setPlayerB(playerB);
+                        match.setTeamA(teamA);
+                        match.setTeamB(teamB);
                         match.setEvent(roundRobin);
                         match.setMatchType(event.getMatchType());
                         match.setGamesRequiredToWin(event.getGamesRequiredToWin());
                         allMatches.add(match);
 
-                        // Add this match to both players' schedules
-                        playerSchedules.get(i).addMatch(match);
-                        playerSchedules.get(j).addMatch(match);
+                        // Add this match to both teams' schedules
+                        teamSchedules.get(i).addMatch(match);
+                        teamSchedules.get(j).addMatch(match);
                     }
                 }
 
@@ -675,7 +705,7 @@ public class TournamentService {
                 matchRepo.saveAll(allMatches);
 
                 // Add schedules to the event and save
-                roundRobin.addPlayerSchedule(playerSchedules);
+                roundRobin.addTeamSchedule(teamSchedules);
                 eventRepo.save(roundRobin);
             }
         } else if (event instanceof DoubleElimEvent doubleElim) {
@@ -700,12 +730,12 @@ public class TournamentService {
             }
             singleElimEvent.getRounds().clear();
         } else if (event instanceof RoundRobinEvent roundRobinEvent) {
-            for (PlayerSchedule schedule : roundRobinEvent.getPlayerSchedules()) {
+            for (TeamSchedule schedule : roundRobinEvent.getTeamSchedules()) {
                 matchesToDelete.addAll(schedule.getMatches());
             }
             // Use distinct to avoid deleting the same match multiple times
             matchesToDelete = matchesToDelete.stream().distinct().toList();
-            roundRobinEvent.getPlayerSchedules().clear();
+            roundRobinEvent.getTeamSchedules().clear();
         } else if (event instanceof DoubleElimEvent doubleElimEvent) {
             for (DoubleElimRound round : doubleElimEvent.getWinnersBracket()) {
                 matchesToDelete.addAll(round.getMatches());
@@ -743,19 +773,25 @@ public class TournamentService {
             }
             return draw;
         } else if (event instanceof RoundRobinEvent roundRobinEvent) {
-            // For round robin, return a TreeMap mapping each user to their matches
-            Map<User, List<Match>> draw = new TreeMap<>();
-            for (PlayerSchedule schedule : roundRobinEvent.getPlayerSchedules()) {
-                User player = schedule.getPlayer();
-                List<Match> playerMatches = new ArrayList<>(schedule.getMatches());
+            // For round robin, return a TreeMap mapping each team to their matches
+            Map<Team, List<Match>> draw = new TreeMap<>((t1, t2) -> {
+                // Sort by team ID for consistent ordering
+                if (t1.getId() != null && t2.getId() != null) {
+                    return t1.getId().compareTo(t2.getId());
+                }
+                return 0;
+            });
+            for (TeamSchedule schedule : roundRobinEvent.getTeamSchedules()) {
+                Team team = schedule.getTeam();
+                List<Match> teamMatches = new ArrayList<>(schedule.getMatches());
                 // Sort matches for consistent ordering
-                playerMatches.sort((m1, m2) -> {
+                teamMatches.sort((m1, m2) -> {
                     if (m1.getId() != null && m2.getId() != null) {
                         return m1.getId().compareTo(m2.getId());
                     }
                     return 0;
                 });
-                draw.put(player, playerMatches);
+                draw.put(team, teamMatches);
             }
             return draw;
         } else if (event instanceof DoubleElimEvent doubleElimEvent) {
@@ -2101,44 +2137,42 @@ public class TournamentService {
         }
 
         // Count wins and total scores for each player
-        for (PlayerSchedule schedule : event.getPlayerSchedules()) {
-            User player = schedule.getPlayer();
+        for (TeamSchedule schedule : event.getTeamSchedules()) {
+            Team team = schedule.getTeam();
+
+            // Get all players in this team
+            List<User> teamPlayers = new ArrayList<>();
+            if (team.getPlayer1() != null) teamPlayers.add(team.getPlayer1());
+            if (team.getPlayer2() != null) teamPlayers.add(team.getPlayer2());
+
             int wins = 0;
             int totalScore = 0;
 
             for (Match match : schedule.getMatches()) {
                 if (match.isCompleted()) {
-                    // Check if this player won (works for both singles and doubles)
-                    boolean playerWon = false;
+                    // Check if this team won
+                    boolean teamWon = false;
 
-                    // For singles: check if player is the winner
-                    if (match.getWinner() != null && match.getWinner().equals(player)) {
-                        playerWon = true;
+                    if (match.getWinnerTeam() != null && match.getWinnerTeam().equals(team)) {
+                        teamWon = true;
                     }
 
-                    // For doubles: check if player's team won
-                    if (match.getMatchType() == com.tournamenthost.connect.frontend.with.backend.Model.MatchType.DOUBLES
-                        && match.getWinnerTeam() != null) {
-                        Team winnerTeam = match.getWinnerTeam();
-                        if ((winnerTeam.getPlayer1() != null && winnerTeam.getPlayer1().equals(player)) ||
-                            (winnerTeam.getPlayer2() != null && winnerTeam.getPlayer2().equals(player))) {
-                            playerWon = true;
-                        }
-                    }
-
-                    if (playerWon) {
+                    if (teamWon) {
                         wins++;
                     }
 
-                    // Calculate player's score in this match
+                    // Calculate team's score in this match
                     if (match.getScore() != null && !match.getScore().isEmpty()) {
-                        totalScore += getPlayerScoreInMatch(match, player);
+                        totalScore += getTeamScoreInMatch(match, team);
                     }
                 }
             }
 
-            userWins.put(player, wins);
-            userTotalScore.put(player, totalScore);
+            // Update wins and scores for all players in this team
+            for (User player : teamPlayers) {
+                userWins.put(player, userWins.getOrDefault(player, 0) + wins);
+                userTotalScore.put(player, userTotalScore.getOrDefault(player, 0) + totalScore);
+            }
         }
 
         // Sort players by wins (then by total score as tiebreaker)
@@ -2359,6 +2393,24 @@ public class TournamentService {
         if (match.getPlayerA() != null && match.getPlayerA().equals(player)) {
             return match.getScore().get(0);
         } else if (match.getPlayerB() != null && match.getPlayerB().equals(player)) {
+            return match.getScore().size() > 1 ? match.getScore().get(1) : 0;
+        }
+
+        return 0;
+    }
+
+    /**
+     * Helper: Get team's score in a specific match
+     */
+    private int getTeamScoreInMatch(Match match, Team team) {
+        if (match.getScore() == null || match.getScore().isEmpty()) {
+            return 0;
+        }
+
+        // Assume score list has [teamA score, teamB score]
+        if (match.getTeamA() != null && match.getTeamA().equals(team)) {
+            return match.getScore().get(0);
+        } else if (match.getTeamB() != null && match.getTeamB().equals(team)) {
             return match.getScore().size() > 1 ? match.getScore().get(1) : 0;
         }
 

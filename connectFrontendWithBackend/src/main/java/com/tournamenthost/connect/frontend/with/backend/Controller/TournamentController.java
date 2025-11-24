@@ -396,19 +396,19 @@ public class TournamentController {
             } else if (event instanceof RoundRobinEvent) {
                 eventType = "ROUND_ROBIN";
                 Object drawObject = tournamentService.getEventDraw(tournamentId, eventIndex);
-                Map<User, List<Match>> draw = (Map<User, List<Match>>) drawObject;
-                for (Map.Entry<User, List<Match>> entry : draw.entrySet()) {
-                    User user = entry.getKey();
-                    UserDTO userDTO = createUserDTO(user, event);
+                Map<Team, List<Match>> draw = (Map<Team, List<Match>>) drawObject;
+                for (Map.Entry<Team, List<Match>> entry : draw.entrySet()) {
+                    Team team = entry.getKey();
+                    TeamDTO teamDTO = convertTeamToDTO(team);
 
-                    List<Object> playerRow = new ArrayList<>();
-                    playerRow.add(userDTO);
+                    List<Object> teamRow = new ArrayList<>();
+                    teamRow.add(teamDTO);
 
                     for (Match match : entry.getValue()) {
                         MatchDTO dto = createMatchDTO(match, event);
-                        playerRow.add(dto);
+                        teamRow.add(dto);
                     }
-                    dtoDraw.add(playerRow);
+                    dtoDraw.add(teamRow);
                 }
             } else if (event instanceof DoubleElimEvent doubleElimEvent) {
                 eventType = "DOUBLE_ELIM";
@@ -637,7 +637,9 @@ public class TournamentController {
     // Helper to create UserDTO with optional seed information
     private UserDTO createUserDTO(User user, BaseEvent event) {
         if (user == null) {
-            return new UserDTO();
+            UserDTO emptyDto = new UserDTO();
+            emptyDto.setTournaments(null);
+            return emptyDto;
         }
 
         // Check if we should include seed information
@@ -648,12 +650,14 @@ public class TournamentController {
             dto.setUsername(user.getUsername());
             dto.setName(user.getName());
             dto.setSeed(seed);
+            dto.setTournaments(null); // Prevent circular reference
             return dto;
         } else {
             UserDTO dto = new UserDTO();
             dto.setId(user.getId());
             dto.setUsername(user.getUsername());
             dto.setName(user.getName());
+            dto.setTournaments(null); // Prevent circular reference
             return dto;
         }
     }

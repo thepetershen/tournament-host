@@ -3,6 +3,7 @@ package com.tournamenthost.connect.frontend.with.backend.Model;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.tournamenthost.connect.frontend.with.backend.Model.Event.BaseEvent;
 import com.tournamenthost.connect.frontend.with.backend.Model.Event.SingleElimEvent;
 
@@ -77,6 +78,7 @@ public class Match {
     private boolean completed;
 
     @ManyToOne
+    @JsonIgnore  // Prevent circular reference: Match -> Event -> matches
     private BaseEvent event;
 
     /**
