@@ -61,6 +61,7 @@ public class SecurityConfiguration {
         // Allow multiple origins: production frontend + localhost for development
         configuration.setAllowedOrigins(List.of(
             frontendUrl,
+            "https://tournament-host.onrender.com",
             "http://localhost:5173",
             "http://localhost:3000"
         ));
