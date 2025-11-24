@@ -81,6 +81,9 @@ function LoginPage() {
           Forgot password?
         </Link>
       </div>
+      <div className={styles.registerLink}>
+        Don't have an account? <Link to="/register" className={styles.link}>Register here</Link>
+      </div>
     </div>
   );
 }
