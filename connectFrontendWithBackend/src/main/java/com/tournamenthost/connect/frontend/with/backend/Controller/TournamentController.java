@@ -47,7 +47,6 @@ import java.util.TreeMap;
 
 @RestController
 @RequestMapping("/api/tournaments")
-@CrossOrigin(origins = "http://localhost:5173")
 public class TournamentController {
 
     private final TournamentService tournamentService;
