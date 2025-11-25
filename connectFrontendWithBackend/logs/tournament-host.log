@@ -8944,3 +8944,103 @@ org.springframework.web.servlet.resource.NoResourceFoundException: No static res
 2025-11-25 14:45:56.934 [http-nio-8080-exec-3] DEBUG o.s.w.s.m.m.a.HttpEntityMethodProcessor - Using 'application/json', given [application/json, text/plain, */*] and supported [application/json, application/*+json]
 2025-11-25 14:45:56.934 [http-nio-8080-exec-3] DEBUG o.s.w.s.m.m.a.HttpEntityMethodProcessor - Writing [[]]
 2025-11-25 14:45:56.934 [http-nio-8080-exec-3] DEBUG o.s.web.servlet.DispatcherServlet - Completed 200 OK
+2025-11-25 15:18:02.700 [http-nio-8080-exec-8] DEBUG o.s.web.servlet.DispatcherServlet - GET "/api/tournaments/2/users", parameters={}
+2025-11-25 15:18:02.700 [http-nio-8080-exec-3] DEBUG o.s.web.servlet.DispatcherServlet - GET "/api/tournaments/2/events", parameters={}
+2025-11-25 15:18:02.700 [http-nio-8080-exec-9] DEBUG o.s.web.servlet.DispatcherServlet - GET "/api/tournaments/2/editors", parameters={}
+2025-11-25 15:18:02.700 [http-nio-8080-exec-7] DEBUG o.s.web.servlet.DispatcherServlet - GET "/api/tournaments/2", parameters={}
+2025-11-25 15:18:02.701 [http-nio-8080-exec-8] DEBUG o.s.w.s.m.m.a.RequestMappingHandlerMapping - Mapped to com.tournamenthost.connect.frontend.with.backend.Controller.TournamentController#getAllUser(Long)
+2025-11-25 15:18:02.701 [http-nio-8080-exec-7] DEBUG o.s.w.s.m.m.a.RequestMappingHandlerMapping - Mapped to com.tournamenthost.connect.frontend.with.backend.Controller.TournamentController#getTournament(Long)
+2025-11-25 15:18:02.701 [http-nio-8080-exec-9] DEBUG o.s.w.s.m.m.a.RequestMappingHandlerMapping - Mapped to com.tournamenthost.connect.frontend.with.backend.Controller.TournamentController#getTournamentEditors(Long)
+2025-11-25 15:18:02.701 [http-nio-8080-exec-3] DEBUG o.s.w.s.m.m.a.RequestMappingHandlerMapping - Mapped to com.tournamenthost.connect.frontend.with.backend.Controller.TournamentController#getEventsForTournament(Long)
+2025-11-25 15:18:02.707 [http-nio-8080-exec-9] DEBUG o.s.w.s.m.m.a.HttpEntityMethodProcessor - Using 'application/json', given [application/json, text/plain, */*] and supported [application/json, application/*+json]
+2025-11-25 15:18:02.707 [http-nio-8080-exec-9] DEBUG o.s.w.s.m.m.a.HttpEntityMethodProcessor - Writing [[com.tournamenthost.connect.frontend.with.backend.DTO.UserDTO@41465c62, com.tournamenthost.connect.f (truncated)...]
+2025-11-25 15:18:02.708 [http-nio-8080-exec-9] DEBUG o.s.web.servlet.DispatcherServlet - Completed 200 OK
+2025-11-25 15:18:02.710 [http-nio-8080-exec-7] DEBUG o.s.w.s.m.m.a.HttpEntityMethodProcessor - Using 'application/json', given [application/json, text/plain, */*] and supported [application/json, application/*+json]
+2025-11-25 15:18:02.710 [http-nio-8080-exec-7] DEBUG o.s.w.s.m.m.a.HttpEntityMethodProcessor - Writing [TournamentDTO(name=Wa Closed, id=2, owner=com.tournamenthost.connect.frontend.with.backend.DTO.UserD (truncated)...]
+2025-11-25 15:18:02.711 [http-nio-8080-exec-7] DEBUG o.s.web.servlet.DispatcherServlet - Completed 200 OK
+2025-11-25 15:18:02.715 [http-nio-8080-exec-3] DEBUG o.s.w.s.m.m.a.HttpEntityMethodProcessor - Using 'application/json', given [application/json, text/plain, */*] and supported [application/json, application/*+json]
+2025-11-25 15:18:02.715 [http-nio-8080-exec-3] DEBUG o.s.w.s.m.m.a.HttpEntityMethodProcessor - Writing [[EventDTO(name=SingleElim, id=0, eventType=SINGLE_ELIM, matchType=SINGLES, gamesPerMatch=1, gamesReq (truncated)...]
+2025-11-25 15:18:02.716 [http-nio-8080-exec-3] DEBUG o.s.web.servlet.DispatcherServlet - Completed 200 OK
+2025-11-25 15:18:02.718 [http-nio-8080-exec-9] DEBUG o.s.web.servlet.DispatcherServlet - GET "/api/tournaments/2/editors", parameters={}
+2025-11-25 15:18:02.718 [http-nio-8080-exec-9] DEBUG o.s.w.s.m.m.a.RequestMappingHandlerMapping - Mapped to com.tournamenthost.connect.frontend.with.backend.Controller.TournamentController#getTournamentEditors(Long)
+2025-11-25 15:18:02.719 [http-nio-8080-exec-1] DEBUG o.s.web.servlet.DispatcherServlet - GET "/api/tournaments/2", parameters={}
+2025-11-25 15:18:02.719 [http-nio-8080-exec-1] DEBUG o.s.w.s.m.m.a.RequestMappingHandlerMapping - Mapped to com.tournamenthost.connect.frontend.with.backend.Controller.TournamentController#getTournament(Long)
+2025-11-25 15:18:02.720 [http-nio-8080-exec-9] DEBUG o.s.w.s.m.m.a.HttpEntityMethodProcessor - Using 'application/json', given [application/json, text/plain, */*] and supported [application/json, application/*+json]
+2025-11-25 15:18:02.720 [http-nio-8080-exec-9] DEBUG o.s.w.s.m.m.a.HttpEntityMethodProcessor - Writing [[com.tournamenthost.connect.frontend.with.backend.DTO.UserDTO@5276be05, com.tournamenthost.connect.f (truncated)...]
+2025-11-25 15:18:02.721 [http-nio-8080-exec-9] DEBUG o.s.web.servlet.DispatcherServlet - Completed 200 OK
+2025-11-25 15:18:02.724 [http-nio-8080-exec-1] DEBUG o.s.w.s.m.m.a.HttpEntityMethodProcessor - Using 'application/json', given [application/json, text/plain, */*] and supported [application/json, application/*+json]
+2025-11-25 15:18:02.724 [http-nio-8080-exec-1] DEBUG o.s.w.s.m.m.a.HttpEntityMethodProcessor - Writing [TournamentDTO(name=Wa Closed, id=2, owner=com.tournamenthost.connect.frontend.with.backend.DTO.UserD (truncated)...]
+2025-11-25 15:18:02.724 [http-nio-8080-exec-1] DEBUG o.s.web.servlet.DispatcherServlet - Completed 200 OK
+2025-11-25 15:18:02.724 [http-nio-8080-exec-8] DEBUG o.s.w.s.m.m.a.HttpEntityMethodProcessor - Using 'application/json', given [application/json, text/plain, */*] and supported [application/json, application/*+json]
+2025-11-25 15:18:02.725 [http-nio-8080-exec-8] DEBUG o.s.w.s.m.m.a.HttpEntityMethodProcessor - Writing [[com.tournamenthost.connect.frontend.with.backend.DTO.UserDTO@3efe38f5, com.tournamenthost.connect.f (truncated)...]
+2025-11-25 15:18:02.725 [http-nio-8080-exec-8] DEBUG o.s.web.servlet.DispatcherServlet - Completed 200 OK
+2025-11-25 15:18:02.725 [http-nio-8080-exec-2] DEBUG o.s.web.servlet.DispatcherServlet - GET "/api/tournaments/2/events", parameters={}
+2025-11-25 15:18:02.725 [http-nio-8080-exec-2] DEBUG o.s.w.s.m.m.a.RequestMappingHandlerMapping - Mapped to com.tournamenthost.connect.frontend.with.backend.Controller.TournamentController#getEventsForTournament(Long)
+2025-11-25 15:18:02.730 [http-nio-8080-exec-4] DEBUG o.s.web.servlet.DispatcherServlet - GET "/api/tournaments/2/users", parameters={}
+2025-11-25 15:18:02.730 [http-nio-8080-exec-4] DEBUG o.s.w.s.m.m.a.RequestMappingHandlerMapping - Mapped to com.tournamenthost.connect.frontend.with.backend.Controller.TournamentController#getAllUser(Long)
+2025-11-25 15:18:02.735 [http-nio-8080-exec-2] DEBUG o.s.w.s.m.m.a.HttpEntityMethodProcessor - Using 'application/json', given [application/json, text/plain, */*] and supported [application/json, application/*+json]
+2025-11-25 15:18:02.736 [http-nio-8080-exec-2] DEBUG o.s.w.s.m.m.a.HttpEntityMethodProcessor - Writing [[EventDTO(name=SingleElim, id=0, eventType=SINGLE_ELIM, matchType=SINGLES, gamesPerMatch=1, gamesReq (truncated)...]
+2025-11-25 15:18:02.736 [http-nio-8080-exec-2] DEBUG o.s.web.servlet.DispatcherServlet - Completed 200 OK
+2025-11-25 15:18:02.739 [http-nio-8080-exec-3] DEBUG o.s.web.servlet.DispatcherServlet - GET "/api/tournaments/2/event/0/registrations/pending", parameters={}
+2025-11-25 15:18:02.740 [http-nio-8080-exec-3] DEBUG o.s.w.s.m.m.a.RequestMappingHandlerMapping - Mapped to com.tournamenthost.connect.frontend.with.backend.Controller.TournamentController#getPendingRegistrations(Long, int)
+2025-11-25 15:18:02.741 [http-nio-8080-exec-1] DEBUG o.s.web.servlet.DispatcherServlet - GET "/api/tournaments/2/event/2/registrations/pending", parameters={}
+2025-11-25 15:18:02.742 [http-nio-8080-exec-1] DEBUG o.s.w.s.m.m.a.RequestMappingHandlerMapping - Mapped to com.tournamenthost.connect.frontend.with.backend.Controller.TournamentController#getPendingRegistrations(Long, int)
+2025-11-25 15:18:02.743 [http-nio-8080-exec-10] DEBUG o.s.web.servlet.DispatcherServlet - GET "/api/tournaments/2/event/1/registrations/pending", parameters={}
+2025-11-25 15:18:02.743 [http-nio-8080-exec-10] DEBUG o.s.w.s.m.m.a.RequestMappingHandlerMapping - Mapped to com.tournamenthost.connect.frontend.with.backend.Controller.TournamentController#getPendingRegistrations(Long, int)
+2025-11-25 15:18:02.743 [http-nio-8080-exec-6] DEBUG o.s.web.servlet.DispatcherServlet - GET "/api/tournaments/2/event/3/registrations/pending", parameters={}
+2025-11-25 15:18:02.743 [http-nio-8080-exec-6] DEBUG o.s.w.s.m.m.a.RequestMappingHandlerMapping - Mapped to com.tournamenthost.connect.frontend.with.backend.Controller.TournamentController#getPendingRegistrations(Long, int)
+2025-11-25 15:18:02.745 [http-nio-8080-exec-4] DEBUG o.s.w.s.m.m.a.HttpEntityMethodProcessor - Using 'application/json', given [application/json, text/plain, */*] and supported [application/json, application/*+json]
+2025-11-25 15:18:02.745 [http-nio-8080-exec-4] DEBUG o.s.w.s.m.m.a.HttpEntityMethodProcessor - Writing [[com.tournamenthost.connect.frontend.with.backend.DTO.UserDTO@5f937d7, com.tournamenthost.connect.fr (truncated)...]
+2025-11-25 15:18:02.745 [http-nio-8080-exec-4] DEBUG o.s.web.servlet.DispatcherServlet - Completed 200 OK
+2025-11-25 15:18:02.750 [http-nio-8080-exec-1] DEBUG o.s.w.s.m.m.a.HttpEntityMethodProcessor - Using 'application/json', given [application/json, text/plain, */*] and supported [application/json, application/*+json]
+2025-11-25 15:18:02.750 [http-nio-8080-exec-1] DEBUG o.s.w.s.m.m.a.HttpEntityMethodProcessor - Writing [[]]
+2025-11-25 15:18:02.750 [http-nio-8080-exec-3] DEBUG o.s.w.s.m.m.a.HttpEntityMethodProcessor - Using 'application/json', given [application/json, text/plain, */*] and supported [application/json, application/*+json]
+2025-11-25 15:18:02.750 [http-nio-8080-exec-3] DEBUG o.s.w.s.m.m.a.HttpEntityMethodProcessor - Writing [[]]
+2025-11-25 15:18:02.750 [http-nio-8080-exec-1] DEBUG o.s.web.servlet.DispatcherServlet - Completed 200 OK
+2025-11-25 15:18:02.750 [http-nio-8080-exec-3] DEBUG o.s.web.servlet.DispatcherServlet - Completed 200 OK
+2025-11-25 15:18:02.752 [http-nio-8080-exec-2] DEBUG o.s.web.servlet.DispatcherServlet - GET "/api/tournaments/2/event/5/registrations/pending", parameters={}
+2025-11-25 15:18:02.752 [http-nio-8080-exec-2] DEBUG o.s.w.s.m.m.a.RequestMappingHandlerMapping - Mapped to com.tournamenthost.connect.frontend.with.backend.Controller.TournamentController#getPendingRegistrations(Long, int)
+2025-11-25 15:18:02.754 [http-nio-8080-exec-5] DEBUG o.s.web.servlet.DispatcherServlet - GET "/api/tournaments/2/event/4/registrations/pending", parameters={}
+2025-11-25 15:18:02.759 [http-nio-8080-exec-10] DEBUG o.s.w.s.m.m.a.HttpEntityMethodProcessor - Using 'application/json', given [application/json, text/plain, */*] and supported [application/json, application/*+json]
+2025-11-25 15:18:02.760 [http-nio-8080-exec-10] DEBUG o.s.w.s.m.m.a.HttpEntityMethodProcessor - Writing [[]]
+2025-11-25 15:18:02.759 [http-nio-8080-exec-5] DEBUG o.s.w.s.m.m.a.RequestMappingHandlerMapping - Mapped to com.tournamenthost.connect.frontend.with.backend.Controller.TournamentController#getPendingRegistrations(Long, int)
+2025-11-25 15:18:02.761 [http-nio-8080-exec-10] DEBUG o.s.web.servlet.DispatcherServlet - Completed 200 OK
+2025-11-25 15:18:02.764 [http-nio-8080-exec-6] DEBUG o.s.w.s.m.m.a.HttpEntityMethodProcessor - Using 'application/json', given [application/json, text/plain, */*] and supported [application/json, application/*+json]
+2025-11-25 15:18:02.764 [http-nio-8080-exec-6] DEBUG o.s.w.s.m.m.a.HttpEntityMethodProcessor - Writing [[]]
+2025-11-25 15:18:02.766 [http-nio-8080-exec-6] DEBUG o.s.web.servlet.DispatcherServlet - Completed 200 OK
+2025-11-25 15:18:02.767 [http-nio-8080-exec-8] DEBUG o.s.web.servlet.DispatcherServlet - GET "/api/tournaments/2/event/2/registrations/pending", parameters={}
+2025-11-25 15:18:02.767 [http-nio-8080-exec-8] DEBUG o.s.w.s.m.m.a.RequestMappingHandlerMapping - Mapped to com.tournamenthost.connect.frontend.with.backend.Controller.TournamentController#getPendingRegistrations(Long, int)
+2025-11-25 15:18:02.768 [http-nio-8080-exec-7] DEBUG o.s.web.servlet.DispatcherServlet - GET "/api/tournaments/2/event/0/registrations/pending", parameters={}
+2025-11-25 15:18:02.768 [http-nio-8080-exec-7] DEBUG o.s.w.s.m.m.a.RequestMappingHandlerMapping - Mapped to com.tournamenthost.connect.frontend.with.backend.Controller.TournamentController#getPendingRegistrations(Long, int)
+2025-11-25 15:18:02.770 [http-nio-8080-exec-9] DEBUG o.s.web.servlet.DispatcherServlet - GET "/api/tournaments/2/event/1/registrations/pending", parameters={}
+2025-11-25 15:18:02.771 [http-nio-8080-exec-9] DEBUG o.s.w.s.m.m.a.RequestMappingHandlerMapping - Mapped to com.tournamenthost.connect.frontend.with.backend.Controller.TournamentController#getPendingRegistrations(Long, int)
+2025-11-25 15:18:02.771 [http-nio-8080-exec-2] DEBUG o.s.w.s.m.m.a.HttpEntityMethodProcessor - Using 'application/json', given [application/json, text/plain, */*] and supported [application/json, application/*+json]
+2025-11-25 15:18:02.773 [http-nio-8080-exec-2] DEBUG o.s.w.s.m.m.a.HttpEntityMethodProcessor - Writing [[]]
+2025-11-25 15:18:02.773 [http-nio-8080-exec-2] DEBUG o.s.web.servlet.DispatcherServlet - Completed 200 OK
+2025-11-25 15:18:02.780 [http-nio-8080-exec-5] DEBUG o.s.w.s.m.m.a.HttpEntityMethodProcessor - Using 'application/json', given [application/json, text/plain, */*] and supported [application/json, application/*+json]
+2025-11-25 15:18:02.780 [http-nio-8080-exec-5] DEBUG o.s.w.s.m.m.a.HttpEntityMethodProcessor - Writing [[]]
+2025-11-25 15:18:02.780 [http-nio-8080-exec-5] DEBUG o.s.web.servlet.DispatcherServlet - Completed 200 OK
+2025-11-25 15:18:02.779 [http-nio-8080-exec-8] DEBUG o.s.w.s.m.m.a.HttpEntityMethodProcessor - Using 'application/json', given [application/json, text/plain, */*] and supported [application/json, application/*+json]
+2025-11-25 15:18:02.781 [http-nio-8080-exec-8] DEBUG o.s.w.s.m.m.a.HttpEntityMethodProcessor - Writing [[]]
+2025-11-25 15:18:02.781 [http-nio-8080-exec-8] DEBUG o.s.web.servlet.DispatcherServlet - Completed 200 OK
+2025-11-25 15:18:02.783 [http-nio-8080-exec-4] DEBUG o.s.web.servlet.DispatcherServlet - GET "/api/tournaments/2/event/3/registrations/pending", parameters={}
+2025-11-25 15:18:02.783 [http-nio-8080-exec-4] DEBUG o.s.w.s.m.m.a.RequestMappingHandlerMapping - Mapped to com.tournamenthost.connect.frontend.with.backend.Controller.TournamentController#getPendingRegistrations(Long, int)
+2025-11-25 15:18:02.784 [http-nio-8080-exec-9] DEBUG o.s.w.s.m.m.a.HttpEntityMethodProcessor - Using 'application/json', given [application/json, text/plain, */*] and supported [application/json, application/*+json]
+2025-11-25 15:18:02.784 [http-nio-8080-exec-9] DEBUG o.s.w.s.m.m.a.HttpEntityMethodProcessor - Writing [[]]
+2025-11-25 15:18:02.784 [http-nio-8080-exec-9] DEBUG o.s.web.servlet.DispatcherServlet - Completed 200 OK
+2025-11-25 15:18:02.785 [http-nio-8080-exec-1] DEBUG o.s.web.servlet.DispatcherServlet - GET "/api/tournaments/2/event/5/registrations/pending", parameters={}
+2025-11-25 15:18:02.785 [http-nio-8080-exec-5] DEBUG o.s.web.servlet.DispatcherServlet - GET "/api/tournaments/2/event/4/registrations/pending", parameters={}
+2025-11-25 15:18:02.785 [http-nio-8080-exec-5] DEBUG o.s.w.s.m.m.a.RequestMappingHandlerMapping - Mapped to com.tournamenthost.connect.frontend.with.backend.Controller.TournamentController#getPendingRegistrations(Long, int)
+2025-11-25 15:18:02.785 [http-nio-8080-exec-1] DEBUG o.s.w.s.m.m.a.RequestMappingHandlerMapping - Mapped to com.tournamenthost.connect.frontend.with.backend.Controller.TournamentController#getPendingRegistrations(Long, int)
+2025-11-25 15:18:02.787 [http-nio-8080-exec-7] DEBUG o.s.w.s.m.m.a.HttpEntityMethodProcessor - Using 'application/json', given [application/json, text/plain, */*] and supported [application/json, application/*+json]
+2025-11-25 15:18:02.787 [http-nio-8080-exec-7] DEBUG o.s.w.s.m.m.a.HttpEntityMethodProcessor - Writing [[]]
+2025-11-25 15:18:02.787 [http-nio-8080-exec-7] DEBUG o.s.web.servlet.DispatcherServlet - Completed 200 OK
+2025-11-25 15:18:02.791 [http-nio-8080-exec-4] DEBUG o.s.w.s.m.m.a.HttpEntityMethodProcessor - Using 'application/json', given [application/json, text/plain, */*] and supported [application/json, application/*+json]
+2025-11-25 15:18:02.791 [http-nio-8080-exec-4] DEBUG o.s.w.s.m.m.a.HttpEntityMethodProcessor - Writing [[]]
+2025-11-25 15:18:02.792 [http-nio-8080-exec-5] DEBUG o.s.w.s.m.m.a.HttpEntityMethodProcessor - Using 'application/json', given [application/json, text/plain, */*] and supported [application/json, application/*+json]
+2025-11-25 15:18:02.792 [http-nio-8080-exec-4] DEBUG o.s.web.servlet.DispatcherServlet - Completed 200 OK
+2025-11-25 15:18:02.792 [http-nio-8080-exec-5] DEBUG o.s.w.s.m.m.a.HttpEntityMethodProcessor - Writing [[]]
+2025-11-25 15:18:02.792 [http-nio-8080-exec-5] DEBUG o.s.web.servlet.DispatcherServlet - Completed 200 OK
+2025-11-25 15:18:02.792 [http-nio-8080-exec-1] DEBUG o.s.w.s.m.m.a.HttpEntityMethodProcessor - Using 'application/json', given [application/json, text/plain, */*] and supported [application/json, application/*+json]
+2025-11-25 15:18:02.792 [http-nio-8080-exec-1] DEBUG o.s.w.s.m.m.a.HttpEntityMethodProcessor - Writing [[]]
+2025-11-25 15:18:02.792 [http-nio-8080-exec-1] DEBUG o.s.web.servlet.DispatcherServlet - Completed 200 OK
