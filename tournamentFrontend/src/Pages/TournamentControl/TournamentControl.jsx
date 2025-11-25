@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import authAxios from '../../utils/authAxios';
 import PlayerLink from '../../Components/PlayerLink/PlayerLink';
-import BracketPreview from '../../components/BracketPreview';
+import BracketPreview from '../../Components/BracketPreview';
 import { supportsPreview } from '../../utils/bracketGenerator';
 import styles from './TournamentControl.module.css';
 
