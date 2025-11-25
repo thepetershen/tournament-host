@@ -360,6 +360,35 @@ public class TournamentService {
         eventRepo.save(event);
     }
 
+    public void removePlayer(Long tournamentId, int eventIndex, Long playerId) {
+        BaseEvent event = getEventsForTournament(tournamentId).get(eventIndex);
+        User user = userRepo.findById(playerId)
+            .orElseThrow(() -> new IllegalArgumentException("User with id " + playerId + " not found"));
+        if (event.isEventInitialized()) {
+            throw new IllegalArgumentException("Cannot remove player - event has already been initialized");
+        }
+
+        // Clean up player seeding if this player was seeded
+        Integer deletedSeed = event.getPlayerSeeds().get(playerId);
+        if (deletedSeed != null) {
+            event.getPlayerSeeds().remove(playerId);
+
+            // Auto-renumber: decrement all higher seeds by 1 to maintain sequential seeding
+            Map<Long, Integer> updatedSeeds = new HashMap<>();
+            for (Map.Entry<Long, Integer> entry : event.getPlayerSeeds().entrySet()) {
+                if (entry.getValue() > deletedSeed) {
+                    updatedSeeds.put(entry.getKey(), entry.getValue() - 1);
+                } else {
+                    updatedSeeds.put(entry.getKey(), entry.getValue());
+                }
+            }
+            event.setPlayerSeeds(updatedSeeds);
+        }
+
+        event.removePlayer(user);
+        eventRepo.save(event);
+    }
+
     public List<User> getPlayers(Long tournamentId, int eventIndex) {
         BaseEvent event = getEventsForTournament(tournamentId).get(eventIndex);
         return event.getPlayers();
@@ -392,6 +421,10 @@ public class TournamentService {
             // Add all matches from losers bracket
             for (DoubleElimRound round : doubleElim.getLosersBracket()) {
                 answer.addAll(round.getMatches());
+            }
+            // Add bronze match if it exists
+            if (doubleElim.getBronzeMatch() != null) {
+                answer.add(doubleElim.getBronzeMatch());
             }
             return answer;
         } else {
@@ -1049,6 +1082,12 @@ public class TournamentService {
         User loser = completedMatch.getPlayerA().equals(winner) ?
                      completedMatch.getPlayerB() : completedMatch.getPlayerA();
 
+        // Check if this is the bronze match (terminal match, no advancement needed)
+        if (doubleElim.getBronzeMatch() != null &&
+            completedMatch.getId().equals(doubleElim.getBronzeMatch().getId())) {
+            return; // Bronze match is terminal, no further advancement
+        }
+
         // Find which bracket and round this match is in
         boolean isWinnersBracket = false;
         int currentRoundIndex = -1;
@@ -1109,29 +1148,40 @@ public class TournamentService {
                 }
             }
 
-            // Feed loser to losers bracket (if within feed-in cutoff)
-            if (currentRoundIndex <= doubleElim.getFeedInCutoffRound()) {
-                // Find the corresponding losers bracket round that receives from this winners round
-                for (DoubleElimRound losersRound : losersRounds) {
-                    Integer feedsFrom = losersRound.getFeedsFromWinnersRound();
-                    if (feedsFrom != null && feedsFrom.intValue() == currentRoundIndex) {
+            // Feed loser to losers bracket (only if they've never won in winners bracket)
+            // This allows players who got byes and then lost to drop to losers
+            if (currentRoundIndex <= doubleElim.getFeedInCutoffRound() && !losersRounds.isEmpty()) {
+                // Check if loser has ever won in winners bracket
+                boolean loserHasWon = hasPlayerWonInWinnersBracket(loser, doubleElim);
 
-                        List<Match> losersMatches = losersRound.getMatches();
-                        // Find an empty slot in this losers round
-                        for (Match losersMatch : losersMatches) {
-                            if (losersMatch.getPlayerA() == null) {
-                                losersMatch.setPlayerA(loser);
-                                matchRepo.save(losersMatch);
-                                break;
-                            } else if (losersMatch.getPlayerB() == null) {
-                                losersMatch.setPlayerB(loser);
-                                matchRepo.save(losersMatch);
-                                break;
+                // Only drop to losers if they've never won (first match loss or bye -> loss)
+                if (!loserHasWon) {
+                    // Find the corresponding losers bracket round that receives from this winners round
+                    for (DoubleElimRound losersRound : losersRounds) {
+                        Integer feedsFrom = losersRound.getFeedsFromWinnersRound();
+                        if (feedsFrom != null && feedsFrom.intValue() == currentRoundIndex) {
+                            List<Match> losersMatches = losersRound.getMatches();
+
+                            // Deterministic placement: Winners matches 0,1 → Losers match 0 (A,B)
+                            // Winners matches 2,3 → Losers match 1 (A,B), etc.
+                            int losersMatchIndex = matchPositionInRound / 2;
+                            boolean isPositionA = (matchPositionInRound % 2 == 0);
+
+                            if (losersMatchIndex < losersMatches.size()) {
+                                Match losersMatch = losersMatches.get(losersMatchIndex);
+                                if (isPositionA && losersMatch.getPlayerA() == null) {
+                                    losersMatch.setPlayerA(loser);
+                                    matchRepo.save(losersMatch);
+                                } else if (!isPositionA && losersMatch.getPlayerB() == null) {
+                                    losersMatch.setPlayerB(loser);
+                                    matchRepo.save(losersMatch);
+                                }
                             }
+                            break;
                         }
-                        break;
                     }
                 }
+                // If loser HAS won before, they're eliminated (don't drop to losers)
             } else if (currentRoundIndex == winnersRounds.size() - 2) {
                 // Semifinals losers go to bronze match (3rd/4th place)
                 Match bronzeMatch = doubleElim.getBronzeMatch();
@@ -1177,6 +1227,12 @@ public class TournamentService {
         // Determine the loser team
         Team loserTeam = completedMatch.getTeamA().equals(winnerTeam) ?
                          completedMatch.getTeamB() : completedMatch.getTeamA();
+
+        // Check if this is the bronze match (terminal match, no advancement needed)
+        if (doubleElim.getBronzeMatch() != null &&
+            completedMatch.getId().equals(doubleElim.getBronzeMatch().getId())) {
+            return; // Bronze match is terminal, no further advancement
+        }
 
         // Find which bracket and round this match is in
         boolean isWinnersBracket = false;
@@ -1238,29 +1294,40 @@ public class TournamentService {
                 }
             }
 
-            // Feed loser team to losers bracket (if within feed-in cutoff)
-            if (currentRoundIndex <= doubleElim.getFeedInCutoffRound()) {
-                // Find the corresponding losers bracket round that receives from this winners round
-                for (DoubleElimRound losersRound : losersRounds) {
-                    Integer feedsFrom = losersRound.getFeedsFromWinnersRound();
-                    if (feedsFrom != null && feedsFrom.intValue() == currentRoundIndex) {
+            // Feed loser team to losers bracket (only if they've never won in winners bracket)
+            // This allows teams who got byes and then lost to drop to losers
+            if (currentRoundIndex <= doubleElim.getFeedInCutoffRound() && !losersRounds.isEmpty()) {
+                // Check if loser team has ever won in winners bracket
+                boolean loserHasWon = hasTeamWonInWinnersBracket(loserTeam, doubleElim);
 
-                        List<Match> losersMatches = losersRound.getMatches();
-                        // Find an empty slot in this losers round
-                        for (Match losersMatch : losersMatches) {
-                            if (losersMatch.getTeamA() == null) {
-                                losersMatch.setTeamA(loserTeam);
-                                matchRepo.save(losersMatch);
-                                break;
-                            } else if (losersMatch.getTeamB() == null) {
-                                losersMatch.setTeamB(loserTeam);
-                                matchRepo.save(losersMatch);
-                                break;
+                // Only drop to losers if they've never won (first match loss or bye -> loss)
+                if (!loserHasWon) {
+                    // Find the corresponding losers bracket round that receives from this winners round
+                    for (DoubleElimRound losersRound : losersRounds) {
+                        Integer feedsFrom = losersRound.getFeedsFromWinnersRound();
+                        if (feedsFrom != null && feedsFrom.intValue() == currentRoundIndex) {
+                            List<Match> losersMatches = losersRound.getMatches();
+
+                            // Deterministic placement: Winners matches 0,1 → Losers match 0 (A,B)
+                            // Winners matches 2,3 → Losers match 1 (A,B), etc.
+                            int losersMatchIndex = matchPositionInRound / 2;
+                            boolean isPositionA = (matchPositionInRound % 2 == 0);
+
+                            if (losersMatchIndex < losersMatches.size()) {
+                                Match losersMatch = losersMatches.get(losersMatchIndex);
+                                if (isPositionA && losersMatch.getTeamA() == null) {
+                                    losersMatch.setTeamA(loserTeam);
+                                    matchRepo.save(losersMatch);
+                                } else if (!isPositionA && losersMatch.getTeamB() == null) {
+                                    losersMatch.setTeamB(loserTeam);
+                                    matchRepo.save(losersMatch);
+                                }
                             }
+                            break;
                         }
-                        break;
                     }
                 }
+                // If loser HAS won before, they're eliminated (don't drop to losers)
             } else if (currentRoundIndex == winnersRounds.size() - 2) {
                 // Semifinals losers go to bronze match (3rd/4th place)
                 Match bronzeMatch = doubleElim.getBronzeMatch();
@@ -1320,11 +1387,6 @@ public class TournamentService {
             bracketSize = TournamentUtil.nextPowerOfTwo(players.size());
         }
 
-        // Feed-in cutoff: only feed in from quarterfinals (first round only)
-        // After quarterfinals, losers bracket plays out independently
-        int feedInCutoff = 0;  // Only feed from round 0 (quarterfinals)
-        doubleElim.setFeedInCutoffRound(feedInCutoff);
-
         List<Match> allMatches = new ArrayList<>();
 
         // 1. Create Winners Bracket (standard single elimination)
@@ -1337,10 +1399,18 @@ public class TournamentService {
         }
         doubleElim.addWinnersRounds(winnersRounds);
 
-        // 2. Create Losers Bracket (half the size of winners bracket)
-        int losersBracketSize = bracketSize / 2;
-        List<DoubleElimRound> losersRounds = createLosersBracket(doubleElim, losersBracketSize, feedInCutoff, allMatches);
-        doubleElim.addLosersRounds(losersRounds);
+        // 2. Create Losers Bracket only if bracket size > 4
+        // For 4 or fewer players, just use bronze match
+        if (bracketSize > 4) {
+            // Feed-in cutoff: feed from rounds 0 and 1 to handle byes
+            // Players who get byes in R0 and lose in R1 should drop to losers (never won a real match)
+            int feedInCutoff = 1;  // Feed from rounds 0 AND 1 (to handle byes)
+            doubleElim.setFeedInCutoffRound(feedInCutoff);
+
+            int losersBracketSize = bracketSize / 2;
+            List<DoubleElimRound> losersRounds = createLosersBracket(doubleElim, losersBracketSize, feedInCutoff, allMatches);
+            doubleElim.addLosersRounds(losersRounds);
+        }
 
         // 3. Create Bronze Match (3rd/4th place) for semifinal losers
         Match bronzeMatch = new Match();
@@ -1354,13 +1424,15 @@ public class TournamentService {
         matchRepo.saveAll(allMatches);
         eventRepo.save(doubleElim);
 
-        // Auto-advance any players/teams in losers bracket who are alone in their match
-        if (isDoubles) {
-            autoAdvanceSingleTeamsInLosersBracket(doubleElim);
-        } else {
-            autoAdvanceSinglePlayersInLosersBracket(doubleElim);
+        // Auto-advance any players/teams in losers bracket who are alone in their match (only if losers bracket exists)
+        if (bracketSize > 4) {
+            if (isDoubles) {
+                autoAdvanceSingleTeamsInLosersBracket(doubleElim);
+            } else {
+                autoAdvanceSinglePlayersInLosersBracket(doubleElim);
+            }
+            matchRepo.saveAll(allMatches);
         }
-        matchRepo.saveAll(allMatches);
     }
 
     /**
@@ -2425,46 +2497,153 @@ public class TournamentService {
      */
     private void validateSeeding(BaseEvent event) {
         Map<Long, Integer> playerSeeds = event.getPlayerSeeds();
-        if (playerSeeds == null || playerSeeds.isEmpty()) {
-            // No seeds set, that's fine
-            return;
-        }
+        Map<Long, Integer> teamSeeds = event.getTeamSeeds();
 
         // Validate: Only Single Elim and Double Elim can be seeded
         if (event instanceof RoundRobinEvent) {
-            throw new IllegalArgumentException("Round Robin events cannot use seeding");
-        }
-
-        List<User> players = event.getPlayers();
-        List<Long> playerIds = players.stream().map(User::getId).toList();
-
-        // Validate: all seeded players must be in the event
-        for (Long userId : playerSeeds.keySet()) {
-            if (!playerIds.contains(userId)) {
-                throw new IllegalArgumentException("Seeded user with ID " + userId + " is not registered in this event");
+            if ((playerSeeds != null && !playerSeeds.isEmpty()) ||
+                (teamSeeds != null && !teamSeeds.isEmpty())) {
+                throw new IllegalArgumentException("Round Robin events cannot use seeding");
             }
         }
 
-        // Validate: number of seeds cannot exceed number of players
-        if (playerSeeds.size() > players.size()) {
-            throw new IllegalArgumentException("Number of seeds (" + playerSeeds.size() +
-                ") cannot exceed number of players (" + players.size() + ")");
-        }
+        // Validate player seeds
+        if (playerSeeds != null && !playerSeeds.isEmpty()) {
+            List<User> players = event.getPlayers();
+            List<Long> playerIds = players.stream().map(User::getId).toList();
 
-        // Validate: seed numbers must be sequential starting from 1
-        List<Integer> seedNumbers = new ArrayList<>(playerSeeds.values());
-        seedNumbers.sort(Integer::compareTo);
-        for (int i = 0; i < seedNumbers.size(); i++) {
-            if (seedNumbers.get(i) != i + 1) {
-                throw new IllegalArgumentException("Seed numbers must be sequential starting from 1. Found: " + seedNumbers);
+            // Validate: all seeded players must be in the event
+            for (Long userId : playerSeeds.keySet()) {
+                if (!playerIds.contains(userId)) {
+                    throw new IllegalArgumentException("Seeded user with ID " + userId + " is not registered in this event");
+                }
+            }
+
+            // Validate: number of seeds cannot exceed number of players
+            if (playerSeeds.size() > players.size()) {
+                throw new IllegalArgumentException("Number of seeds (" + playerSeeds.size() +
+                    ") cannot exceed number of players (" + players.size() + ")");
+            }
+
+            // Validate: seed numbers must be sequential starting from 1
+            List<Integer> seedNumbers = new ArrayList<>(playerSeeds.values());
+            seedNumbers.sort(Integer::compareTo);
+            for (int i = 0; i < seedNumbers.size(); i++) {
+                if (seedNumbers.get(i) != i + 1) {
+                    throw new IllegalArgumentException("Player seed numbers must be sequential starting from 1. Found: " + seedNumbers);
+                }
+            }
+
+            // Validate: no duplicate seed numbers
+            Set<Integer> uniqueSeeds = new HashSet<>(playerSeeds.values());
+            if (uniqueSeeds.size() != playerSeeds.values().size()) {
+                throw new IllegalArgumentException("Duplicate player seed numbers found");
             }
         }
 
-        // Validate: no duplicate seed numbers
-        Set<Integer> uniqueSeeds = new HashSet<>(playerSeeds.values());
-        if (uniqueSeeds.size() != playerSeeds.values().size()) {
-            throw new IllegalArgumentException("Duplicate seed numbers found");
+        // Validate team seeds
+        if (teamSeeds != null && !teamSeeds.isEmpty()) {
+            List<Team> teams = teamRepo.findByEvent(event);
+            List<Long> teamIds = teams.stream().map(Team::getId).toList();
+
+            // Validate: all seeded teams must be in the event
+            for (Long teamId : teamSeeds.keySet()) {
+                if (!teamIds.contains(teamId)) {
+                    throw new IllegalArgumentException("Seeded team with ID " + teamId + " is not registered in this event");
+                }
+            }
+
+            // Validate: number of seeds cannot exceed number of teams
+            if (teamSeeds.size() > teams.size()) {
+                throw new IllegalArgumentException("Number of seeds (" + teamSeeds.size() +
+                    ") cannot exceed number of teams (" + teams.size() + ")");
+            }
+
+            // Validate: seed numbers must be sequential starting from 1
+            List<Integer> teamSeedNumbers = new ArrayList<>(teamSeeds.values());
+            teamSeedNumbers.sort(Integer::compareTo);
+            for (int i = 0; i < teamSeedNumbers.size(); i++) {
+                if (teamSeedNumbers.get(i) != i + 1) {
+                    throw new IllegalArgumentException("Team seed numbers must be sequential starting from 1. Found: " + teamSeedNumbers);
+                }
+            }
+
+            // Validate: no duplicate seed numbers
+            Set<Integer> uniqueTeamSeeds = new HashSet<>(teamSeeds.values());
+            if (uniqueTeamSeeds.size() != teamSeeds.values().size()) {
+                throw new IllegalArgumentException("Duplicate team seed numbers found");
+            }
         }
+    }
+
+    /**
+     * Get player seeds for an event
+     * @param tournamentId Tournament ID
+     * @param eventIndex Event index
+     * @return Map of player ID to seed number (empty map if no seeding)
+     */
+    public Map<Long, Integer> getPlayerSeeds(Long tournamentId, int eventIndex) {
+        BaseEvent event = getEventsForTournament(tournamentId).get(eventIndex);
+        Map<Long, Integer> seeds = event.getPlayerSeeds();
+        return seeds != null ? seeds : new HashMap<>();
+    }
+
+    /**
+     * Get team seeds for an event
+     * @param tournamentId Tournament ID
+     * @param eventIndex Event index
+     * @return Map of team ID to seed number (empty map if no seeding)
+     */
+    public Map<Long, Integer> getTeamSeeds(Long tournamentId, int eventIndex) {
+        BaseEvent event = getEventsForTournament(tournamentId).get(eventIndex);
+        Map<Long, Integer> seeds = event.getTeamSeeds();
+        return seeds != null ? seeds : new HashMap<>();
+    }
+
+    /**
+     * Check if a player has ever won a REAL match (not a bye) in the winners bracket
+     * @param player The player to check
+     * @param doubleElim The double elimination event
+     * @return true if player has won at least one non-bye match in winners bracket
+     */
+    private boolean hasPlayerWonInWinnersBracket(User player, DoubleElimEvent doubleElim) {
+        if (player == null) return false;
+
+        for (DoubleElimRound round : doubleElim.getWinnersBracket()) {
+            for (Match match : round.getMatches()) {
+                if (match.isCompleted() && match.getWinner() != null && match.getWinner().equals(player)) {
+                    // Check if this was a real match (both players present) or just a bye
+                    boolean isByeMatch = (match.getPlayerA() == null || match.getPlayerB() == null);
+                    if (!isByeMatch) {
+                        return true; // Player won a real match
+                    }
+                }
+            }
+        }
+        return false; // Player only won bye matches (or no matches)
+    }
+
+    /**
+     * Check if a team has ever won a REAL match (not a bye) in the winners bracket
+     * @param team The team to check
+     * @param doubleElim The double elimination event
+     * @return true if team has won at least one non-bye match in winners bracket
+     */
+    private boolean hasTeamWonInWinnersBracket(Team team, DoubleElimEvent doubleElim) {
+        if (team == null) return false;
+
+        for (DoubleElimRound round : doubleElim.getWinnersBracket()) {
+            for (Match match : round.getMatches()) {
+                if (match.isCompleted() && match.getWinnerTeam() != null && match.getWinnerTeam().equals(team)) {
+                    // Check if this was a real match (both teams present) or just a bye
+                    boolean isByeMatch = (match.getTeamA() == null || match.getTeamB() == null);
+                    if (!isByeMatch) {
+                        return true; // Team won a real match
+                    }
+                }
+            }
+        }
+        return false; // Team only won bye matches (or no matches)
     }
 
     /**
@@ -2951,6 +3130,24 @@ public class TournamentService {
         // Validate: Team belongs to this event
         if (!team.getEvent().getId().equals(event.getId())) {
             throw new IllegalArgumentException("Team does not belong to this event");
+        }
+
+        // Clean up team seeding if this team was seeded
+        Integer deletedSeed = event.getTeamSeeds().get(teamId);
+        if (deletedSeed != null) {
+            event.getTeamSeeds().remove(teamId);
+
+            // Auto-renumber: decrement all higher seeds by 1 to maintain sequential seeding
+            Map<Long, Integer> updatedSeeds = new HashMap<>();
+            for (Map.Entry<Long, Integer> entry : event.getTeamSeeds().entrySet()) {
+                if (entry.getValue() > deletedSeed) {
+                    updatedSeeds.put(entry.getKey(), entry.getValue() - 1);
+                } else {
+                    updatedSeeds.put(entry.getKey(), entry.getValue());
+                }
+            }
+            event.setTeamSeeds(updatedSeeds);
+            eventRepo.save(event);
         }
 
         // Delete the team

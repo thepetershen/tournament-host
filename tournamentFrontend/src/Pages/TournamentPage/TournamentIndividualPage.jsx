@@ -13,7 +13,6 @@ function TournamentIndividualPage() {
   const [tournament, setTournament] = useState(null);
   const [activeTab, setActiveTab] = useState("general");
   const [events, setEvents] = useState([]);
-  const [matches, setMatches] = useState([]);
   const [players, setPlayers] = useState([]);
   const [currentUser, setCurrentUser] = useState(null);
   const [isAuthorized, setIsAuthorized] = useState(false);
@@ -36,11 +35,6 @@ function TournamentIndividualPage() {
       .then(res => setEvents(res.data))
       .catch(err => console.error(err));
 
-    // Fetch matches (public data)
-    publicAxios.get(`/api/tournaments/${tournamentId}/matches`)
-      .then(res => setMatches(res.data))
-      .catch(err => console.error(err));
-
     // Fetch players (public data)
     publicAxios.get(`/api/tournaments/${tournamentId}/users`)
       .then(res => setPlayers(res.data))
@@ -61,20 +55,8 @@ function TournamentIndividualPage() {
   }, [currentUser, tournament]);
 
   const handleSignUpClick = () => {
-    if (!isLoggedIn) {
-      navigate('/login');
-      return;
-    }
-
-    // Verify token is valid by making a quick API call
-    authAxios.get('/api/users/me')
-      .then(() => {
-        navigate(`/tournament/${tournamentId}/signup`);
-      })
-      .catch(() => {
-        // Token is invalid or expired - auth context will handle clearing
-        navigate('/login');
-      });
+    // Always navigate to signup page - it will handle guest signup if not logged in
+    navigate(`/tournament/${tournamentId}/signup`);
   };
 
   return (
@@ -169,10 +151,6 @@ function TournamentIndividualPage() {
               <div className={styles.infoItem}>
                 <div className={styles.infoLabel}>Total Players</div>
                 <div className={styles.infoValue}>{players.length}</div>
-              </div>
-              <div className={styles.infoItem}>
-                <div className={styles.infoLabel}>Total Matches</div>
-                <div className={styles.infoValue}>{matches.length}</div>
               </div>
             </div>
           </div>

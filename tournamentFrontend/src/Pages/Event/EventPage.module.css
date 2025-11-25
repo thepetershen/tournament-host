@@ -107,6 +107,87 @@
     transform: translateY(0);
 }
 
+/* Player list styles */
+.playerListContainer {
+    max-width: 1000px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+.sectionTitle {
+    font-size: 2rem;
+    font-weight: 700;
+    margin-bottom: 8px;
+    color: #333;
+}
+
+.subtitle {
+    color: #666;
+    margin-bottom: 30px;
+    font-size: 1rem;
+}
+
+.section {
+    margin-bottom: 40px;
+}
+
+.subsectionTitle {
+    font-size: 1.5rem;
+    font-weight: 600;
+    margin-bottom: 16px;
+    color: #444;
+}
+
+.playerTable {
+    width: 100%;
+    border-collapse: collapse;
+    background: white;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.playerTable thead {
+    background-color: #667eea;
+    color: white;
+}
+
+.playerTable th {
+    padding: 12px 16px;
+    text-align: left;
+    font-weight: 600;
+    font-size: 0.95rem;
+}
+
+.playerTable tbody tr {
+    border-bottom: 1px solid #e0e0e0;
+}
+
+.playerTable tbody tr:last-child {
+    border-bottom: none;
+}
+
+.playerTable tbody tr:hover {
+    background-color: #f5f5f5;
+}
+
+.playerTable td {
+    padding: 12px 16px;
+    color: #333;
+}
+
+.playerTable td:first-child {
+    color: #888;
+    font-weight: 500;
+}
+
+.emptyMessage {
+    text-align: center;
+    padding: 40px 20px;
+    color: #999;
+    font-size: 1.1rem;
+}
+
 /* Responsive adjustments */
 @media (max-width: 768px) {
     .tournamentHeader {
@@ -137,5 +218,26 @@
     .signUpButton,
     .controlButton {
         width: 100%;
+    }
+
+    .playerListContainer {
+        padding: 10px;
+    }
+
+    .sectionTitle {
+        font-size: 1.5rem;
+    }
+
+    .subsectionTitle {
+        font-size: 1.2rem;
+    }
+
+    .playerTable {
+        font-size: 0.9rem;
+    }
+
+    .playerTable th,
+    .playerTable td {
+        padding: 8px 12px;
     }
 }

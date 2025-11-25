@@ -61,6 +61,33 @@ public abstract class BaseEvent implements Event {
         }
     }
 
+    public void removePlayer(User player) {
+        players.remove(player);
+        // Also remove any seed data for this player and renumber remaining seeds
+        if (playerSeeds != null && playerSeeds.containsKey(player.getId())) {
+            Integer removedSeed = playerSeeds.remove(player.getId());
+
+            // Renumber all seeds higher than the removed seed
+            // If we removed seed #3, then seeds 4, 5, 6... become 3, 4, 5...
+            if (removedSeed != null) {
+                Map<Long, Integer> updatedSeeds = new HashMap<>();
+                for (Map.Entry<Long, Integer> entry : playerSeeds.entrySet()) {
+                    Long userId = entry.getKey();
+                    Integer currentSeed = entry.getValue();
+
+                    if (currentSeed > removedSeed) {
+                        // Decrement this seed by 1
+                        updatedSeeds.put(userId, currentSeed - 1);
+                    } else {
+                        // Keep the same seed
+                        updatedSeeds.put(userId, currentSeed);
+                    }
+                }
+                this.playerSeeds = updatedSeeds;
+            }
+        }
+    }
+
     public List<User> getPlayers(){
         return players;
     }

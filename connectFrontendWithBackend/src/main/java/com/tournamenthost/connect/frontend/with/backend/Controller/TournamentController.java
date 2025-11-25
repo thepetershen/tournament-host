@@ -20,6 +20,7 @@ import com.tournamenthost.connect.frontend.with.backend.DTO.EventRegistrationDTO
 import com.tournamenthost.connect.frontend.with.backend.DTO.ApproveRegistrationsRequest;
 import com.tournamenthost.connect.frontend.with.backend.DTO.EventMatchConfigRequest;
 import com.tournamenthost.connect.frontend.with.backend.DTO.EventSignupRequest;
+import com.tournamenthost.connect.frontend.with.backend.DTO.GuestSignupRequest;
 import com.tournamenthost.connect.frontend.with.backend.DTO.CreateTeamRequest;
 import com.tournamenthost.connect.frontend.with.backend.DTO.GameDTO;
 import com.tournamenthost.connect.frontend.with.backend.Model.Match;
@@ -34,9 +35,11 @@ import com.tournamenthost.connect.frontend.with.backend.Model.Event.SingleElimEv
 import com.tournamenthost.connect.frontend.with.backend.Model.Event.RoundRobinEvent;
 import com.tournamenthost.connect.frontend.with.backend.Model.Event.DoubleElimEvent;
 import com.tournamenthost.connect.frontend.with.backend.Service.TournamentService;
+import com.tournamenthost.connect.frontend.with.backend.Repository.UserRepository;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.ArrayList;
@@ -44,15 +47,20 @@ import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/tournaments")
 public class TournamentController {
 
     private final TournamentService tournamentService;
+    private final UserRepository userRepository;
+    private final PasswordEncoder passwordEncoder;
 
-    public TournamentController(TournamentService tournamentService) {
+    public TournamentController(TournamentService tournamentService, UserRepository userRepository, PasswordEncoder passwordEncoder) {
         this.tournamentService = tournamentService;
+        this.userRepository = userRepository;
+        this.passwordEncoder = passwordEncoder;
     }
 
     private User getCurrentUser() {
@@ -297,6 +305,7 @@ public class TournamentController {
                 dto.setMatchType(event.getMatchType().name());
                 dto.setGamesPerMatch(event.getGamesPerMatch());
                 dto.setGamesRequiredToWin(event.getGamesRequiredToWin());
+                dto.setInitialized(event.isEventInitialized());
 
                 eventDTOs.add(dto);
             }
@@ -354,6 +363,18 @@ public class TournamentController {
                 playerDTOs.add(dto);
             }
             return ResponseEntity.ok(playerDTOs);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    @DeleteMapping("/{tournamentId}/event/{eventIndex}/players/{playerId}")
+    public ResponseEntity<?> removePlayer(@PathVariable Long tournamentId, @PathVariable int eventIndex, @PathVariable Long playerId) {
+        try {
+            User currentUser = getCurrentUser();
+            tournamentService.verifyEditPermission(tournamentId, currentUser);
+            tournamentService.removePlayer(tournamentId, eventIndex, playerId);
+            return ResponseEntity.ok().build();
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(e.getMessage());
         }
@@ -1033,6 +1054,45 @@ public class TournamentController {
     }
 
     /**
+     * Sign up for an event as a guest (without authentication)
+     * Creates a temporary guest account automatically
+     * POST /api/tournaments/{tournamentId}/event/{eventIndex}/signup/guest
+     */
+    @PostMapping("/{tournamentId}/event/{eventIndex}/signup/guest")
+    public ResponseEntity<?> guestSignUpForEvent(
+            @PathVariable Long tournamentId,
+            @PathVariable int eventIndex,
+            @RequestBody GuestSignupRequest request) {
+        try {
+            // Validate input
+            if (request.getFullName() == null || request.getFullName().trim().isEmpty()) {
+                return ResponseEntity.badRequest().body("Full name is required for guest signup");
+            }
+
+            // Create guest user with auto-generated credentials
+            String guestUsername = "guest_" + UUID.randomUUID().toString() + "@temporary.local";
+            String randomPassword = UUID.randomUUID().toString();
+
+            User guestUser = new User();
+            guestUser.setUsername(guestUsername);
+            guestUser.setName(request.getFullName().trim());
+            guestUser.setPassword(passwordEncoder.encode(randomPassword));
+
+            // Save guest user
+            userRepository.save(guestUser);
+
+            // Sign up for event
+            String desiredPartner = request.getDesiredPartner();
+            EventRegistration registration = tournamentService.signUpForEvent(tournamentId, eventIndex, guestUser, desiredPartner);
+
+            EventRegistrationDTO dto = new EventRegistrationDTO(registration);
+            return ResponseEntity.ok(dto);
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    /**
      * Cancel your own registration
      * DELETE /api/tournaments/{tournamentId}/event/{eventIndex}/signup
      */
@@ -1238,6 +1298,44 @@ public class TournamentController {
             return ResponseEntity.badRequest().body(e.getMessage());
         } catch (Exception e) {
             return ResponseEntity.status(500).body("Failed to delete team: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Get player seeding for an event (singles events)
+     * GET /api/tournaments/{tournamentId}/event/{eventIndex}/seeding
+     * Returns a map of player ID to seed number
+     */
+    @GetMapping("/{tournamentId}/event/{eventIndex}/seeding")
+    public ResponseEntity<?> getPlayerSeeding(
+            @PathVariable Long tournamentId,
+            @PathVariable int eventIndex) {
+        try {
+            Map<Long, Integer> seeds = tournamentService.getPlayerSeeds(tournamentId, eventIndex);
+            return ResponseEntity.ok(seeds);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body("Failed to get seeding: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Get team seeding for an event (doubles events)
+     * GET /api/tournaments/{tournamentId}/event/{eventIndex}/team-seeding
+     * Returns a map of team ID to seed number
+     */
+    @GetMapping("/{tournamentId}/event/{eventIndex}/team-seeding")
+    public ResponseEntity<?> getTeamSeeding(
+            @PathVariable Long tournamentId,
+            @PathVariable int eventIndex) {
+        try {
+            Map<Long, Integer> seeds = tournamentService.getTeamSeeds(tournamentId, eventIndex);
+            return ResponseEntity.ok(seeds);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body("Failed to get team seeding: " + e.getMessage());
         }
     }
 }

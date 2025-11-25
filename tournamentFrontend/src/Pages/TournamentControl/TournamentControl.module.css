@@ -1108,3 +1108,30 @@
 .deleteButton:active {
     transform: scale(0.95);
 }
+
+/* ==================== SEEDING CONTAINER (TWO-COLUMN LAYOUT) ==================== */
+.seedingContainer {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2rem;
+    margin-top: 1rem;
+}
+
+.seedingInputsColumn {
+    min-width: 0; /* Prevents grid overflow */
+}
+
+.bracketPreviewColumn {
+    min-width: 0; /* Prevents grid overflow */
+}
+
+/* Responsive: Stack on smaller screens */
+@media (max-width: 1200px) {
+    .seedingContainer {
+        grid-template-columns: 1fr;
+    }
+
+    .bracketPreviewColumn {
+        order: -1; /* Show preview first on mobile */
+    }
+}

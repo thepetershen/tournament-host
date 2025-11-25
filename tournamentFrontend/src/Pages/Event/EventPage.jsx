@@ -16,10 +16,13 @@ function EventPage() {
     const [eventType, setEventType] = useState(null);
     const [draw, setDraw] = useState(null);
     const [tournament, setTournament] = useState(null);
+    const [event, setEvent] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [currentUser, setCurrentUser] = useState(null);
     const [isAuthorized, setIsAuthorized] = useState(false);
+    const [players, setPlayers] = useState([]);
+    const [teams, setTeams] = useState([]);
 
     useEffect(() => {
         const fetchData = async () => {
@@ -38,11 +41,33 @@ function EventPage() {
                 const tournamentResponse = await publicAxios.get(`/api/tournaments/${tournamentId}`);
                 setTournament(tournamentResponse.data);
 
-                // Fetch event draw (public data)
-                const drawResponse = await publicAxios.get(`/api/tournaments/${tournamentId}/event/${eventIndex}/draw`);
-                const { eventType, draw } = drawResponse.data;
-                setEventType(eventType);
-                setDraw(draw);
+                // Fetch event info from events list to check if initialized
+                const eventsResponse = await publicAxios.get(`/api/tournaments/${tournamentId}/events`);
+                const eventData = eventsResponse.data[parseInt(eventIndex)];
+                setEvent(eventData);
+
+                // If event is initialized, fetch the draw
+                if (eventData?.initialized) {
+                    const drawResponse = await publicAxios.get(`/api/tournaments/${tournamentId}/event/${eventIndex}/draw`);
+                    const { eventType, draw } = drawResponse.data;
+                    setEventType(eventType);
+                    setDraw(draw);
+                } else {
+                    // If not initialized, fetch players and teams
+                    const playersResponse = await publicAxios.get(`/api/tournaments/${tournamentId}/event/${eventIndex}/players`);
+                    setPlayers(playersResponse.data || []);
+
+                    // Fetch teams for doubles events
+                    if (eventData?.matchType === 'DOUBLES') {
+                        try {
+                            const teamsResponse = await publicAxios.get(`/api/tournaments/${tournamentId}/event/${eventIndex}/teams`);
+                            setTeams(teamsResponse.data || []);
+                        } catch (err) {
+                            // Teams endpoint might not exist or fail, that's okay
+                            setTeams([]);
+                        }
+                    }
+                }
             } catch (err) {
                 setError('Failed to load event data.');
             } finally {
@@ -84,6 +109,101 @@ function EventPage() {
 
     if (loading) return <div>Loading bracket...</div>;
     if (error) return <div>{error}</div>;
+
+    const renderPlayerList = () => {
+        // Get list of player IDs who are in teams
+        const pairedPlayerIds = new Set();
+        teams.forEach(team => {
+            if (team.player1?.id) pairedPlayerIds.add(team.player1.id);
+            if (team.player2?.id) pairedPlayerIds.add(team.player2.id);
+        });
+
+        // Filter unpaired players
+        const unpairedPlayers = players.filter(p => !pairedPlayerIds.has(p.id));
+
+        return (
+            <div className={styles.playerListContainer}>
+                <h2 className={styles.sectionTitle}>Current Registrations</h2>
+                <p className={styles.subtitle}>The event has not started yet. Participants will be listed here.</p>
+
+                {event?.matchType === 'DOUBLES' && teams.length > 0 && (
+                    <div className={styles.section}>
+                        <h3 className={styles.subsectionTitle}>Teams ({teams.length})</h3>
+                        <table className={styles.playerTable}>
+                            <thead>
+                                <tr>
+                                    <th>Team</th>
+                                    <th>Player 1</th>
+                                    <th>Player 2</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {teams.map((team, index) => (
+                                    <tr key={team.id}>
+                                        <td>Team {index + 1}</td>
+                                        <td>
+                                            {team.player1 ? <PlayerLink player={team.player1} /> : '-'}
+                                        </td>
+                                        <td>
+                                            {team.player2 ? <PlayerLink player={team.player2} /> : '-'}
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                )}
+
+                {event?.matchType === 'DOUBLES' && unpairedPlayers.length > 0 && (
+                    <div className={styles.section}>
+                        <h3 className={styles.subsectionTitle}>Players Without Team ({unpairedPlayers.length})</h3>
+                        <table className={styles.playerTable}>
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>Player</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {unpairedPlayers.map((player, index) => (
+                                    <tr key={player.id}>
+                                        <td>{index + 1}</td>
+                                        <td><PlayerLink player={player} /></td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                )}
+
+                {event?.matchType !== 'DOUBLES' && players.length > 0 && (
+                    <div className={styles.section}>
+                        <h3 className={styles.subsectionTitle}>Players ({players.length})</h3>
+                        <table className={styles.playerTable}>
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>Player</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {players.map((player, index) => (
+                                    <tr key={player.id}>
+                                        <td>{index + 1}</td>
+                                        <td><PlayerLink player={player} /></td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                )}
+
+                {players.length === 0 && teams.length === 0 && (
+                    <p className={styles.emptyMessage}>No players have registered for this event yet.</p>
+                )}
+            </div>
+        );
+    };
 
     const renderBracket = () => {
         switch (eventType) {
@@ -141,7 +261,7 @@ function EventPage() {
 
             {/* Bracket Content Area */}
             <div className={styles.bracketContainer}>
-                {renderBracket()}
+                {event?.initialized ? renderBracket() : renderPlayerList()}
             </div>
         </div>
     );

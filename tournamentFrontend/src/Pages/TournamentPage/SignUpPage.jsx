@@ -3,17 +3,22 @@ import { useParams, useNavigate } from "react-router-dom";
 import authAxios from "../../utils/authAxios";
 import publicAxios from "../../utils/publicAxios";
 import PlayerLink from "../../Components/PlayerLink/PlayerLink";
+import { useAuth } from "../../contexts/AuthContext";
 import styles from "./SignUpPage.module.css";
 
 function SignUpPage() {
   const { tournamentId } = useParams();
   const navigate = useNavigate();
+  const { token } = useAuth();
   const [tournament, setTournament] = useState(null);
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [signupStatus, setSignupStatus] = useState({});
   const [message, setMessage] = useState("");
   const [partnerInputs, setPartnerInputs] = useState({});
+  const [showGuestModal, setShowGuestModal] = useState(false);
+  const [guestName, setGuestName] = useState("");
+  const [selectedEventForGuest, setSelectedEventForGuest] = useState(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -38,6 +43,14 @@ function SignUpPage() {
   }, [tournamentId]);
 
   const handleSignUp = async (eventIndex) => {
+    // Check if user is authenticated
+    if (!token) {
+      // Show guest signup modal
+      setSelectedEventForGuest(eventIndex);
+      setShowGuestModal(true);
+      return;
+    }
+
     try {
       setMessage("");
       const event = events.find(e => e.id === eventIndex);
@@ -58,6 +71,41 @@ function SignUpPage() {
         ...signupStatus,
         [eventIndex]: "error"
       });
+      setMessage(errorMsg);
+    }
+  };
+
+  const handleGuestSignUp = async () => {
+    if (!guestName.trim()) {
+      setMessage("Please enter your full name");
+      return;
+    }
+
+    try {
+      setMessage("");
+      const event = events.find(e => e.id === selectedEventForGuest);
+      const requestBody = {
+        fullName: guestName.trim(),
+        desiredPartner: event?.matchType === 'DOUBLES' && partnerInputs[selectedEventForGuest]
+          ? partnerInputs[selectedEventForGuest]
+          : null
+      };
+
+      await publicAxios.post(
+        `/api/tournaments/${tournamentId}/event/${selectedEventForGuest}/signup/guest`,
+        requestBody
+      );
+
+      setSignupStatus({
+        ...signupStatus,
+        [selectedEventForGuest]: "success"
+      });
+      setMessage(`Successfully signed up for ${event?.name || 'event'} as a guest!`);
+      setShowGuestModal(false);
+      setGuestName("");
+      setSelectedEventForGuest(null);
+    } catch (err) {
+      const errorMsg = err.response?.data || "Failed to sign up as guest";
       setMessage(errorMsg);
     }
   };
@@ -101,13 +149,15 @@ function SignUpPage() {
 
         {events.length === 0 ? (
           <div className={styles.emptyState}>No events available for signup.</div>
+        ) : events.filter(event => !event.initialized).length === 0 ? (
+          <div className={styles.emptyState}>All events have been initialized. No events are currently accepting new signups.</div>
         ) : (
           <div>
             <p className={styles.instructions}>
               Select the events you would like to participate in. Your registration will be pending approval from the tournament organizers.
             </p>
             <ul className={styles.eventsList}>
-              {events.map(event => (
+              {events.filter(event => !event.initialized).map(event => (
                 <li key={event.id} className={styles.eventCard}>
                   <div className={styles.eventInfo}>
                     <h3 className={styles.eventName}>
@@ -162,6 +212,53 @@ function SignUpPage() {
           </button>
         </div>
       </div>
+
+      {/* Guest Signup Modal */}
+      {showGuestModal && (
+        <div className={styles.modalOverlay} onClick={() => setShowGuestModal(false)}>
+          <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
+            <h2 className={styles.modalTitle}>Sign Up as Guest</h2>
+            <div className={styles.warningBox}>
+              <p><strong>⚠️ Warning:</strong> You are not logged in.</p>
+              <p>
+                You can sign up as a guest by providing your full name. This creates a one-time account that <strong>CANNOT be recovered</strong>.
+              </p>
+              <p>
+                If you want to track your tournament history and manage your registrations, please <a href="/login" className={styles.link}>login</a> or <a href="/register" className={styles.link}>create an account</a> instead.
+              </p>
+            </div>
+            <div className={styles.formGroup}>
+              <label className={styles.label}>Full Name:</label>
+              <input
+                type="text"
+                value={guestName}
+                onChange={(e) => setGuestName(e.target.value)}
+                placeholder="Enter your full name"
+                className={styles.input}
+                autoFocus
+              />
+            </div>
+            <div className={styles.modalActions}>
+              <button
+                onClick={() => {
+                  setShowGuestModal(false);
+                  setGuestName("");
+                  setSelectedEventForGuest(null);
+                }}
+                className={styles.cancelButton}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleGuestSignUp}
+                className={styles.confirmButton}
+              >
+                Continue as Guest
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

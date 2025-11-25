@@ -14,4 +14,5 @@ public class EventDTO {
     private String matchType; // "SINGLES" or "DOUBLES"
     private int gamesPerMatch;
     private int gamesRequiredToWin;
+    private boolean initialized;
 }

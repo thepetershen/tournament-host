@@ -3,6 +3,8 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import authAxios from '../../utils/authAxios';
 import PlayerLink from '../../Components/PlayerLink/PlayerLink';
+import BracketPreview from '../../components/BracketPreview';
+import { supportsPreview } from '../../utils/bracketGenerator';
 import styles from './TournamentControl.module.css';
 
 function TournamentControl() {
@@ -379,8 +381,18 @@ function TournamentControl() {
       await authAxios.post(`/api/tournaments/${tournamentId}/event/${selectedEvent.id}/deinitialize`);
       showMessage('success', 'Event deinitialized successfully!');
 
-      const matchesRes = await authAxios.get(`/api/tournaments/${tournamentId}/event/${selectedEvent.id}/matches`);
-      setMatches(matchesRes.data);
+      // Clear matches array since event is now uninitialized
+      setMatches([]);
+
+      // Refresh event list to update initialized status
+      const eventsRes = await authAxios.get(`/api/tournaments/${tournamentId}/events`);
+      setEvents(eventsRes.data);
+
+      // Update selected event
+      const updatedEvent = eventsRes.data.find(e => e.id === selectedEvent.id);
+      if (updatedEvent) {
+        setSelectedEvent(updatedEvent);
+      }
     } catch (err) {
       showMessage('error', err.response?.data || 'Failed to deinitialize event');
     }
@@ -391,6 +403,28 @@ function TournamentControl() {
 
   const handleRecordResult = async (e) => {
     e.preventDefault();
+
+    // Validate both participants exist
+    if (!hasParticipants(selectedMatch)) {
+      showMessage('error', 'Cannot record result for a match with a bye');
+      return;
+    }
+
+    // Validate winner is selected and is a valid participant
+    if (!matchResult.winnerId) {
+      showMessage('error', 'Please select a winner');
+      return;
+    }
+
+    const winnerIdNum = parseInt(matchResult.winnerId);
+    const playerAId = getParticipantId(selectedMatch, 'A');
+    const playerBId = getParticipantId(selectedMatch, 'B');
+
+    if (winnerIdNum !== playerAId && winnerIdNum !== playerBId) {
+      showMessage('error', 'Invalid winner selection');
+      return;
+    }
+
     try {
       // Parse score string to array of integers
       let scoreArray = null;
@@ -429,14 +463,10 @@ function TournamentControl() {
     }
 
     try {
-      // Search all users - you may need to implement a search endpoint
-      // For now, we'll use the tournament users endpoint as a proxy
-      const response = await authAxios.get(`/api/tournaments/${tournamentId}/users`);
-      const filtered = response.data.filter(user =>
-        user.username.toLowerCase().includes(editorSearchQuery.toLowerCase()) ||
-        user.name.toLowerCase().includes(editorSearchQuery.toLowerCase())
-      );
-      setSearchResults(filtered);
+      // Search all users globally using the unified search endpoint
+      const response = await authAxios.get(`/api/search?query=${encodeURIComponent(editorSearchQuery)}`);
+      // Extract users from the response (search returns both players and tournaments)
+      setSearchResults(response.data.players || []);
     } catch (err) {
       showMessage('error', 'Failed to search users');
     }
@@ -577,9 +607,8 @@ function TournamentControl() {
       await authAxios.delete(`/api/tournaments/${tournamentId}/event/${selectedEvent.id}/seeds`);
       showMessage('success', 'Seeds cleared successfully!');
 
-      // Refresh seeds from server
-      const seedsRes = await authAxios.get(`/api/tournaments/${tournamentId}/event/${selectedEvent.id}/seeds`);
-      setSeeds(seedsRes.data || {});
+      // Clear both seeds and manual seeds state immediately
+      setSeeds({});
       setManualSeeds({});
     } catch (err) {
       showMessage('error', err.response?.data || 'Failed to clear seeds');
@@ -669,6 +698,24 @@ function TournamentControl() {
     }
   };
 
+  const handleRemovePlayer = async (playerId) => {
+    if (!window.confirm('Are you sure you want to remove this player from the event?')) {
+      return;
+    }
+
+    try {
+      await authAxios.delete(`/api/tournaments/${tournamentId}/event/${selectedEvent.id}/players/${playerId}`);
+
+      showMessage('success', 'Player removed successfully!');
+
+      // Refresh players list
+      const playersRes = await authAxios.get(`/api/tournaments/${tournamentId}/event/${selectedEvent.id}/players`);
+      setEventPlayers(playersRes.data || []);
+    } catch (err) {
+      showMessage('error', err.response?.data || 'Failed to remove player');
+    }
+  };
+
   // Team seeding management
   const handleTeamSeedChange = (teamId, seedValue) => {
     setManualTeamSeeds(prev => {
@@ -725,9 +772,8 @@ function TournamentControl() {
       await authAxios.delete(`/api/tournaments/${tournamentId}/event/${selectedEvent.id}/seeds`);
       showMessage('success', 'Team seeds cleared successfully!');
 
-      // Refresh seeds from server
-      const seedsRes = await authAxios.get(`/api/tournaments/${tournamentId}/event/${selectedEvent.id}/seeds/teams`);
-      setTeamSeeds(seedsRes.data || {});
+      // Clear both team seeds and manual team seeds state immediately
+      setTeamSeeds({});
       setManualTeamSeeds({});
     } catch (err) {
       showMessage('error', err.response?.data || 'Failed to clear team seeds');
@@ -803,7 +849,26 @@ function TournamentControl() {
   };
 
   const hasParticipants = (match) => {
-    return !!(match.teamA || match.playerA) && !!(match.teamB || match.playerB);
+    // Check if participant exists AND has a valid ID (not an empty DTO)
+    const hasValidA = (match.teamA?.id || match.playerA?.id);
+    const hasValidB = (match.teamB?.id || match.playerB?.id);
+    return !!(hasValidA && hasValidB);
+  };
+
+  // Helper to get list of player IDs that are already in teams
+  const getPairedPlayerIds = () => {
+    const pairedIds = new Set();
+    teams.forEach(team => {
+      if (team.player1?.id) pairedIds.add(team.player1.id);
+      if (team.player2?.id) pairedIds.add(team.player2.id);
+    });
+    return pairedIds;
+  };
+
+  // Helper to filter out players who are already paired
+  const getAvailablePlayers = () => {
+    const pairedIds = getPairedPlayerIds();
+    return eventPlayers.filter(player => !pairedIds.has(player.id));
   };
 
   if (loading) {
@@ -855,7 +920,8 @@ function TournamentControl() {
             <button
               className={`${styles.sidebarButton} ${activeSection === 'registrations' ? styles.active : ''}`}
               onClick={() => setActiveSection('registrations')}
-              disabled={!selectedEvent}
+              disabled={!selectedEvent || selectedEvent.initialized}
+              title={selectedEvent?.initialized ? 'Cannot modify registrations after event is initialized' : ''}
             >
               Registrations {pendingRegistrations.length > 0 && (
                 <span className={styles.badge}>{pendingRegistrations.length}</span>
@@ -864,7 +930,8 @@ function TournamentControl() {
             <button
               className={`${styles.sidebarButton} ${activeSection === 'players' ? styles.active : ''}`}
               onClick={() => setActiveSection('players')}
-              disabled={!selectedEvent}
+              disabled={!selectedEvent || selectedEvent.initialized}
+              title={selectedEvent?.initialized ? 'Cannot add players after event is initialized' : ''}
             >
               Players
             </button>
@@ -872,7 +939,8 @@ function TournamentControl() {
               <button
                 className={`${styles.sidebarButton} ${activeSection === 'partnerMatching' ? styles.active : ''}`}
                 onClick={() => setActiveSection('partnerMatching')}
-                disabled={!selectedEvent}
+                disabled={!selectedEvent || selectedEvent.initialized}
+                title={selectedEvent?.initialized ? 'Cannot modify teams after event is initialized' : ''}
               >
                 Partner Matching
               </button>
@@ -880,14 +948,16 @@ function TournamentControl() {
             <button
               className={`${styles.sidebarButton} ${activeSection === 'matchConfig' ? styles.active : ''}`}
               onClick={() => setActiveSection('matchConfig')}
-              disabled={!selectedEvent}
+              disabled={!selectedEvent || selectedEvent.initialized}
+              title={selectedEvent?.initialized ? 'Cannot change match settings after event is initialized' : ''}
             >
               Match Configuration
             </button>
             <button
               className={`${styles.sidebarButton} ${activeSection === 'seeding' ? styles.active : ''}`}
               onClick={() => setActiveSection('seeding')}
-              disabled={!selectedEvent}
+              disabled={!selectedEvent || selectedEvent.initialized}
+              title={selectedEvent?.initialized ? 'Cannot modify seeds after event is initialized' : ''}
             >
               Seeding
             </button>
@@ -1058,6 +1128,17 @@ function TournamentControl() {
                 <div className={styles.emptyState}>
                   <p>Please select an event to view registrations</p>
                 </div>
+              ) : selectedEvent.initialized ? (
+                <div className={styles.infoCard} style={{ background: '#fff3cd', borderLeft: '4px solid #ffc107' }}>
+                  <h3 style={{ marginTop: 0, color: '#856404' }}>Section Locked</h3>
+                  <p style={{ color: '#856404' }}>
+                    Registrations cannot be modified after the event has been initialized.
+                    The bracket has already been generated with the current participants.
+                  </p>
+                  <p style={{ color: '#856404', marginBottom: 0 }}>
+                    To make changes, you must first de-initialize the event from the Events section.
+                  </p>
+                </div>
               ) : (
                 <>
                   <div className={styles.sectionHeader}>
@@ -1143,34 +1224,75 @@ function TournamentControl() {
           {/* Players Section */}
           {activeSection === 'players' && selectedEvent && (
             <div className={styles.section}>
-              <div className={styles.sectionHeader}>
-                <h2 className={styles.sectionTitle}>Players - {selectedEvent.name}</h2>
-                <button
-                  className={styles.primaryButton}
-                  onClick={() => {
-                    setPlayerSearchResults(allTournamentPlayers);
-                    setShowAddPlayersModal(true);
-                  }}
-                >
-                  + Add Players
-                </button>
-              </div>
-
-              {eventPlayers.length === 0 ? (
-                <div className={styles.emptyState}>
-                  <p>No players in this event yet. Add players to get started!</p>
+              {selectedEvent.initialized ? (
+                <div className={styles.infoCard} style={{ background: '#fff3cd', borderLeft: '4px solid #ffc107' }}>
+                  <h3 style={{ marginTop: 0, color: '#856404' }}>Section Locked</h3>
+                  <p style={{ color: '#856404' }}>
+                    Players cannot be added or removed after the event has been initialized.
+                    The bracket has already been generated with the current participants.
+                  </p>
+                  <p style={{ color: '#856404', marginBottom: 0 }}>
+                    To make changes, you must first de-initialize the event from the Events section.
+                  </p>
                 </div>
               ) : (
-                <div className={styles.playersGrid}>
-                  {eventPlayers.map(player => (
-                    <div key={player.id} className={styles.playerCard}>
-                      <div className={styles.playerName}>
-                        <PlayerLink player={player} />
-                      </div>
-                      <div className={styles.playerDetail}>@{player.username}</div>
+                <>
+                  <div className={styles.sectionHeader}>
+                    <h2 className={styles.sectionTitle}>Players - {selectedEvent.name}</h2>
+                    <button
+                      className={styles.primaryButton}
+                      onClick={() => {
+                        setPlayerSearchResults(allTournamentPlayers);
+                        setShowAddPlayersModal(true);
+                      }}
+                    >
+                      + Add Players
+                    </button>
+                  </div>
+
+                  {Object.keys(seeds).length > 0 && (
+                    <div className={styles.infoCard} style={{ background: '#fff3cd', borderLeft: '4px solid #ffc107', marginBottom: '20px' }}>
+                      <h3 style={{ marginTop: 0, color: '#856404', fontSize: '1rem' }}>⚠️ Seeding Impact</h3>
+                      <p style={{ color: '#856404', marginBottom: '8px', fontSize: '0.9rem' }}>
+                        <strong>Removing a seeded player will automatically adjust remaining seeds:</strong>
+                      </p>
+                      <ul style={{ color: '#856404', marginLeft: '20px', marginBottom: '8px', fontSize: '0.9rem', lineHeight: '1.5' }}>
+                        <li>If you remove Seed #3, all higher seeds (4, 5, 6...) will be decremented by 1 to maintain sequential numbering (1, 2, 3...)</li>
+                        <li>Seeds lower than the removed seed remain unchanged</li>
+                        <li>This ensures your bracket stays valid for initialization</li>
+                      </ul>
+                      <p style={{ color: '#856404', marginBottom: 0, fontSize: '0.85rem', fontStyle: 'italic' }}>
+                        Example: Seeds [1, 2, 3, 4] → Remove Seed #2 → Result: [1, 2, 3] (old seed 3 becomes 2, old seed 4 becomes 3)
+                      </p>
                     </div>
-                  ))}
-                </div>
+                  )}
+
+                  {eventPlayers.length === 0 ? (
+                    <div className={styles.emptyState}>
+                      <p>No players in this event yet. Add players to get started!</p>
+                    </div>
+                  ) : (
+                    <div className={styles.playersGrid}>
+                      {eventPlayers.map(player => (
+                        <div key={player.id} className={styles.playerCard}>
+                          <div>
+                            <div className={styles.playerName}>
+                              <PlayerLink player={player} />
+                            </div>
+                            <div className={styles.playerDetail}>@{player.username}</div>
+                          </div>
+                          <button
+                            className={styles.deleteButton}
+                            onClick={() => handleRemovePlayer(player.id)}
+                            title="Remove player from event"
+                          >
+                            ×
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </>
               )}
             </div>
           )}
@@ -1181,32 +1303,26 @@ function TournamentControl() {
               <h2 className={styles.sectionTitle}>Partner Matching - {selectedEvent.name}</h2>
 
               {selectedEvent.initialized ? (
-                <div className={styles.infoCard}>
-                  <p style={{ color: '#f39c12' }}>
-                    This event has been initialized. Partners cannot be changed after initialization.
+                <div className={styles.infoCard} style={{ background: '#fff3cd', borderLeft: '4px solid #ffc107' }}>
+                  <h3 style={{ marginTop: 0, color: '#856404' }}>Section Locked</h3>
+                  <p style={{ color: '#856404' }}>
+                    This section cannot be modified once the event has been initialized. All partner matching and team creation must be completed before initialization.
                   </p>
-                  {teams.length > 0 && (
-                    <>
-                      <h3 style={{ marginTop: '20px' }}>Created Teams:</h3>
-                      <div className={styles.teamsList}>
-                        {teams.map(team => (
-                          <div key={team.id} className={styles.teamCard}>
-                            {team.teamName}
-                          </div>
-                        ))}
-                      </div>
-                    </>
-                  )}
+                  <p style={{ color: '#856404', marginBottom: 0 }}>
+                    To make changes, you must first de-initialize the event from the Events section.
+                  </p>
                 </div>
               ) : (
                 <>
                   {/* Players with desired partners - show all who specified a partner */}
                   {(() => {
                     // Filter all registrations (pending + approved) for those with desired partners
+                    const pairedIds = getPairedPlayerIds();
                     const registrationsWithPartners = allRegistrations.filter(r =>
                       r.desiredPartner &&
                       r.desiredPartner.trim() !== '' &&
-                      (r.status === 'PENDING' || r.status === 'APPROVED')
+                      (r.status === 'PENDING' || r.status === 'APPROVED') &&
+                      !pairedIds.has(r.user?.id) // Filter out players who are already paired
                     );
 
                     return registrationsWithPartners.length > 0 && (
@@ -1260,7 +1376,7 @@ function TournamentControl() {
                                       })}
                                     >
                                       <option value="">Select actual partner...</option>
-                                      {eventPlayers
+                                      {getAvailablePlayers()
                                         .filter(p => p.id !== reg.user.id)
                                         .map(player => (
                                           <option key={player.id} value={player.id}>
@@ -1294,8 +1410,12 @@ function TournamentControl() {
                       Create teams manually by selecting any two players from the event.
                     </p>
 
-                    {eventPlayers.length < 2 ? (
-                      <p style={{ color: '#999' }}>Need at least 2 players to create a team. Approve registrations first.</p>
+                    {getAvailablePlayers().length < 2 ? (
+                      <p style={{ color: '#999' }}>
+                        {eventPlayers.length < 2
+                          ? 'Need at least 2 players to create a team. Approve registrations first.'
+                          : 'All available players have been paired into teams.'}
+                      </p>
                     ) : (
                       <div style={{ display: 'flex', gap: '16px', alignItems: 'flex-end', flexWrap: 'wrap' }}>
                         <div style={{ flex: '1', minWidth: '200px' }}>
@@ -1311,7 +1431,7 @@ function TournamentControl() {
                             })}
                           >
                             <option value="">Select first player...</option>
-                            {eventPlayers.map(player => (
+                            {getAvailablePlayers().map(player => (
                               <option key={player.id} value={player.id}>
                                 {player.name || player.username}
                               </option>
@@ -1332,7 +1452,7 @@ function TournamentControl() {
                             })}
                           >
                             <option value="">Select second player...</option>
-                            {eventPlayers
+                            {getAvailablePlayers()
                               .filter(p => p.id.toString() !== selectedPartners['manual1'])
                               .map(player => (
                                 <option key={player.id} value={player.id}>
@@ -1389,161 +1509,170 @@ function TournamentControl() {
           {/* Seeding Section */}
           {activeSection === 'seeding' && selectedEvent && (
             <div className={styles.section}>
-              <h2 className={styles.sectionTitle}>
-                Manual Seeding - {selectedEvent.name} {selectedEvent.matchType === 'DOUBLES' && '(Team Seeding)'}
-              </h2>
-
               {selectedEvent.initialized ? (
-                <div className={styles.infoCard}>
-                  <p style={{ color: '#f39c12', marginBottom: '10px' }}>
-                    WARNING: Event is initialized. Seeds cannot be changed after initialization.
+                <div className={styles.infoCard} style={{ background: '#fff3cd', borderLeft: '4px solid #ffc107' }}>
+                  <h3 style={{ marginTop: 0, color: '#856404' }}>Section Locked</h3>
+                  <p style={{ color: '#856404' }}>
+                    Seeding cannot be modified after the event has been initialized.
+                    The bracket has already been generated with the current seeds.
                   </p>
-                  <h3>Current Seeds:</h3>
-                  {selectedEvent.matchType === 'DOUBLES' ? (
-                    // Show team seeds
-                    Object.keys(teamSeeds).length > 0 ? (
-                      <div className={styles.seedList}>
-                        {teams
-                          .filter(team => teamSeeds[team.id])
-                          .sort((a, b) => teamSeeds[a.id] - teamSeeds[b.id])
-                          .map(team => (
-                            <div key={team.id} className={styles.seedItem}>
-                              <span className={styles.seedNumber}>Seed {teamSeeds[team.id]}</span>
-                              <span className={styles.playerName}>{team.teamName}</span>
-                            </div>
-                          ))}
-                      </div>
-                    ) : (
-                      <p>No team seeds set for this event.</p>
-                    )
-                  ) : (
-                    // Show player seeds
-                    Object.keys(seeds).length > 0 ? (
-                      <div className={styles.seedList}>
-                        {eventPlayers
-                          .filter(player => seeds[player.id])
-                          .sort((a, b) => seeds[a.id] - seeds[b.id])
-                          .map(player => (
-                            <div key={player.id} className={styles.seedItem}>
-                              <span className={styles.seedNumber}>Seed {seeds[player.id]}</span>
-                              <span className={styles.playerName}>
-                                <PlayerLink player={player} />
-                              </span>
-                            </div>
-                          ))}
-                      </div>
-                    ) : (
-                      <p>No seeds set for this event.</p>
-                    )
-                  )}
+                  <p style={{ color: '#856404', marginBottom: 0 }}>
+                    To make changes, you must first de-initialize the event from the Events section.
+                  </p>
                 </div>
               ) : (
                 <>
+                  <h2 className={styles.sectionTitle}>
+                    Manual Seeding - {selectedEvent.name} {selectedEvent.matchType === 'DOUBLES' && '(Team Seeding)'}
+                  </h2>
                   <div className={styles.infoCard} style={{ marginBottom: '20px' }}>
-                    <p>
-                      Assign seed numbers to {selectedEvent.matchType === 'DOUBLES' ? 'teams' : 'players'}.
-                      Seeds must be sequential starting from 1 (e.g., 1, 2, 3, 4).
+                    <h3 style={{ marginTop: 0, marginBottom: '12px', fontSize: '1.1rem' }}>How Seeding Works</h3>
+
+                    <p style={{ marginBottom: '10px' }}>
+                      <strong>Seeding controls bracket positions, not byes:</strong>
+                    </p>
+
+                    <ul style={{ marginLeft: '20px', marginBottom: '12px', lineHeight: '1.6' }}>
+                      <li><strong>Seeded {selectedEvent.matchType === 'DOUBLES' ? 'teams' : 'players'}:</strong> Placed at specific bracket positions using standard tournament seeding (Seed 1 at top, Seed 2 opposite side, etc.). This ensures top seeds don't meet until later rounds.</li>
+                      <li><strong>Unseeded {selectedEvent.matchType === 'DOUBLES' ? 'teams' : 'players'}:</strong> Randomly assigned to all remaining bracket positions</li>
+                      <li><strong>Byes:</strong> Only occur when total participants is less than bracket size (4, 8, 16, 32, etc.). Byes fill empty positions AFTER all participants are placed. <em>Seeded players are NOT guaranteed byes.</em></li>
+                    </ul>
+
+                    <p style={{ marginBottom: '10px' }}>
+                      <strong>Example:</strong> 6 players, Seeds 1-2 set in an 8-player bracket:
+                      <br />• Seed 1 → Position 0, Seed 2 → Position 4
+                      <br />• 4 unseeded players randomly fill positions 1, 2, 3, 5, 6, 7
+                      <br />• Result: All 6 players have first-round matches (no byes)
+                    </p>
+
+                    <p style={{ marginTop: '12px', padding: '8px', background: '#fff3cd', borderLeft: '3px solid #ffc107', fontSize: '0.9rem' }}>
+                      <strong>Key Point:</strong> Seeding determines <em>where</em> participants are placed in the bracket to avoid early matchups between top seeds. It does NOT give seeded players free passes.
+                    </p>
+
+                    <p style={{ marginTop: '12px', padding: '8px', background: '#f0f9ff', borderLeft: '3px solid #3b82f6', fontSize: '0.9rem' }}>
+                      <strong>Requirements:</strong> Seeds must be sequential starting from 1 (e.g., 1, 2, 3, 4).
                       Leave blank for unseeded {selectedEvent.matchType === 'DOUBLES' ? 'teams' : 'players'}.
                     </p>
-                    <p style={{ marginTop: '10px' }}>
+
+                    <p style={{ marginTop: '12px' }}>
                       <strong>
                         Current saved seeds: {selectedEvent.matchType === 'DOUBLES' ? Object.keys(teamSeeds).length : Object.keys(seeds).length}
                       </strong>
                     </p>
                   </div>
 
-                  {selectedEvent.matchType === 'DOUBLES' ? (
-                    // Team seeding UI
-                    <>
-                      <div className={styles.seedingControls}>
-                        <button onClick={handleAutoSeedTeams} className={styles.secondaryButton}>
-                          Auto-Seed Teams
-                        </button>
-                        <button onClick={handleSaveTeamSeeds} className={styles.primaryButton}>
-                          Save Team Seeds
-                        </button>
-                        {Object.keys(teamSeeds).length > 0 && (
-                          <button onClick={handleClearTeamSeeds} className={styles.dangerButton}>
-                            Clear All Team Seeds
-                          </button>
-                        )}
-                      </div>
+                  {/* Two-column layout: Seeding inputs on left, Bracket preview on right */}
+                  <div className={styles.seedingContainer}>
+                    {/* Left column: Seeding inputs */}
+                    <div className={styles.seedingInputsColumn}>
+                      {selectedEvent.matchType === 'DOUBLES' ? (
+                        // Team seeding UI
+                        <>
+                          <div className={styles.seedingControls}>
+                            <button onClick={handleAutoSeedTeams} className={styles.secondaryButton}>
+                              Auto-Seed Teams
+                            </button>
+                            <button onClick={handleSaveTeamSeeds} className={styles.primaryButton}>
+                              Save Team Seeds
+                            </button>
+                            {Object.keys(teamSeeds).length > 0 && (
+                              <button onClick={handleClearTeamSeeds} className={styles.dangerButton}>
+                                Clear All Team Seeds
+                              </button>
+                            )}
+                          </div>
 
-                      <div className={styles.playerSeedList}>
-                        {teams.length === 0 ? (
-                          <p>No teams created for this event yet. Create teams from the Partner Matching section.</p>
-                        ) : (
-                          teams.map(team => (
-                            <div key={team.id} className={styles.playerSeedRow}>
-                              <div className={styles.playerInfo}>
-                                <span className={styles.playerUsername}>{team.teamName}</span>
-                              </div>
-                              <div className={styles.seedInputContainer}>
-                                <label htmlFor={`seed-${team.id}`}>Seed:</label>
-                                <input
-                                  id={`seed-${team.id}`}
-                                  type="number"
-                                  min="1"
-                                  max={teams.length}
-                                  value={manualTeamSeeds[team.id] || ''}
-                                  onChange={(e) => handleTeamSeedChange(team.id, e.target.value)}
-                                  placeholder={teamSeeds[team.id] ? `Current: ${teamSeeds[team.id]}` : 'None'}
-                                  className={styles.seedInput}
-                                />
-                              </div>
-                            </div>
-                          ))
-                        )}
-                      </div>
-                    </>
-                  ) : (
-                    // Player seeding UI
-                    <>
-                      <div className={styles.seedingControls}>
-                        <button onClick={handleAutoSeed} className={styles.secondaryButton}>
-                          Auto-Seed Players
-                        </button>
-                        <button onClick={handleSaveSeeds} className={styles.primaryButton}>
-                          Save Seeds
-                        </button>
-                        {Object.keys(seeds).length > 0 && (
-                          <button onClick={handleClearSeeds} className={styles.dangerButton}>
-                            Clear All Seeds
-                          </button>
-                        )}
-                      </div>
+                          <div className={styles.playerSeedList}>
+                            {teams.length === 0 ? (
+                              <p>No teams created for this event yet. Create teams from the Partner Matching section.</p>
+                            ) : (
+                              teams.map(team => (
+                                <div key={team.id} className={styles.playerSeedRow}>
+                                  <div className={styles.playerInfo}>
+                                    <span className={styles.playerUsername}>{team.teamName}</span>
+                                  </div>
+                                  <div className={styles.seedInputContainer}>
+                                    <label htmlFor={`seed-${team.id}`}>Seed:</label>
+                                    <input
+                                      id={`seed-${team.id}`}
+                                      type="number"
+                                      min="1"
+                                      max={teams.length}
+                                      value={manualTeamSeeds[team.id] || ''}
+                                      onChange={(e) => handleTeamSeedChange(team.id, e.target.value)}
+                                      placeholder={teamSeeds[team.id] ? `Current: ${teamSeeds[team.id]}` : 'None'}
+                                      className={styles.seedInput}
+                                    />
+                                  </div>
+                                </div>
+                              ))
+                            )}
+                          </div>
+                        </>
+                      ) : (
+                        // Player seeding UI
+                        <>
+                          <div className={styles.seedingControls}>
+                            <button onClick={handleAutoSeed} className={styles.secondaryButton}>
+                              Auto-Seed Players
+                            </button>
+                            <button onClick={handleSaveSeeds} className={styles.primaryButton}>
+                              Save Seeds
+                            </button>
+                            {Object.keys(seeds).length > 0 && (
+                              <button onClick={handleClearSeeds} className={styles.dangerButton}>
+                                Clear All Seeds
+                              </button>
+                            )}
+                          </div>
 
-                      <div className={styles.playerSeedList}>
-                        {eventPlayers.length === 0 ? (
-                          <p>No players registered for this event yet.</p>
-                        ) : (
-                          eventPlayers.map(player => (
-                            <div key={player.id} className={styles.playerSeedRow}>
-                              <div className={styles.playerInfo}>
-                                <span className={styles.playerUsername}>
-                                  <PlayerLink player={player} />
-                                </span>
-                                <span className={styles.playerRealName}>@{player.username}</span>
-                              </div>
-                              <div className={styles.seedInputContainer}>
-                                <label htmlFor={`seed-${player.id}`}>Seed:</label>
-                                <input
-                                  id={`seed-${player.id}`}
-                                  type="number"
-                                  min="1"
-                                  max={eventPlayers.length}
-                                  value={manualSeeds[player.id] || ''}
-                                  onChange={(e) => handleSeedChange(player.id, e.target.value)}
-                                  placeholder={seeds[player.id] ? `Current: ${seeds[player.id]}` : 'None'}
-                                  className={styles.seedInput}
-                                />
-                              </div>
-                            </div>
-                          ))
-                        )}
+                          <div className={styles.playerSeedList}>
+                            {eventPlayers.length === 0 ? (
+                              <p>No players registered for this event yet.</p>
+                            ) : (
+                              eventPlayers.map(player => (
+                                <div key={player.id} className={styles.playerSeedRow}>
+                                  <div className={styles.playerInfo}>
+                                    <span className={styles.playerUsername}>
+                                      <PlayerLink player={player} />
+                                    </span>
+                                    <span className={styles.playerRealName}>@{player.username}</span>
+                                  </div>
+                                  <div className={styles.seedInputContainer}>
+                                    <label htmlFor={`seed-${player.id}`}>Seed:</label>
+                                    <input
+                                      id={`seed-${player.id}`}
+                                      type="number"
+                                      min="1"
+                                      max={eventPlayers.length}
+                                      value={manualSeeds[player.id] || ''}
+                                      onChange={(e) => handleSeedChange(player.id, e.target.value)}
+                                      placeholder={seeds[player.id] ? `Current: ${seeds[player.id]}` : 'None'}
+                                      className={styles.seedInput}
+                                    />
+                                  </div>
+                                </div>
+                              ))
+                            )}
+                          </div>
+                        </>
+                      )}
+                    </div>
+
+                    {/* Right column: Bracket preview (only for single/double elim) */}
+                    {supportsPreview(selectedEvent.eventType) && (
+                      <div className={styles.bracketPreviewColumn}>
+                        <BracketPreview
+                          players={eventPlayers}
+                          teams={teams}
+                          seeds={manualSeeds}
+                          teamSeeds={manualTeamSeeds}
+                          matchType={selectedEvent.matchType}
+                          eventType={selectedEvent.eventType}
+                        />
                       </div>
-                    </>
-                  )}
+                    )}
+                  </div>
                 </>
               )}
             </div>
@@ -1594,22 +1723,28 @@ function TournamentControl() {
           {/* Match Configuration Section */}
           {activeSection === 'matchConfig' && selectedEvent && (
             <div className={styles.section}>
-              <div className={styles.sectionHeader}>
-                <h2 className={styles.sectionTitle}>Match Configuration - {selectedEvent.name}</h2>
-                <button
-                  className={styles.primaryButton}
-                  onClick={handleSaveMatchConfig}
-                  disabled={selectedEvent.initialized}
-                >
-                  Save Configuration
-                </button>
-              </div>
-
-              {selectedEvent.initialized && (
-                <div className={styles.warningBox}>
-                  Event has been initialized. Match configuration cannot be changed.
+              {selectedEvent.initialized ? (
+                <div className={styles.infoCard} style={{ background: '#fff3cd', borderLeft: '4px solid #ffc107' }}>
+                  <h3 style={{ marginTop: 0, color: '#856404' }}>Section Locked</h3>
+                  <p style={{ color: '#856404' }}>
+                    Match configuration cannot be changed after the event has been initialized.
+                    The bracket has already been generated with these settings.
+                  </p>
+                  <p style={{ color: '#856404', marginBottom: 0 }}>
+                    To make changes, you must first de-initialize the event from the Events section.
+                  </p>
                 </div>
-              )}
+              ) : (
+                <>
+                  <div className={styles.sectionHeader}>
+                    <h2 className={styles.sectionTitle}>Match Configuration - {selectedEvent.name}</h2>
+                    <button
+                      className={styles.primaryButton}
+                      onClick={handleSaveMatchConfig}
+                    >
+                      Save Configuration
+                    </button>
+                  </div>
 
               <div className={styles.configForm}>
                 <div className={styles.formGroup}>
@@ -1660,6 +1795,8 @@ function TournamentControl() {
                   </ul>
                 </div>
               </div>
+                </>
+              )}
             </div>
           )}
 
@@ -1804,7 +1941,7 @@ function TournamentControl() {
                   onChange={(e) => setNewEvent({ ...newEvent, eventType: e.target.value })}
                 >
                   <option value="SINGLE_ELIM">Single Elimination</option>
-                  <option value="DOUBLE_ELIM">Double Elimination</option>
+                  {/* <option value="DOUBLE_ELIM">Double Elimination</option> */}
                   <option value="ROUND_ROBIN">Round Robin</option>
                 </select>
               </div>
@@ -1838,8 +1975,12 @@ function TournamentControl() {
                   required
                 >
                   <option value="">Select winner...</option>
-                  <option value={getParticipantId(selectedMatch, 'A')}>{getParticipantName(selectedMatch, 'A')}</option>
-                  <option value={getParticipantId(selectedMatch, 'B')}>{getParticipantName(selectedMatch, 'B')}</option>
+                  {getParticipantId(selectedMatch, 'A') && (
+                    <option value={getParticipantId(selectedMatch, 'A')}>{getParticipantName(selectedMatch, 'A')}</option>
+                  )}
+                  {getParticipantId(selectedMatch, 'B') && (
+                    <option value={getParticipantId(selectedMatch, 'B')}>{getParticipantName(selectedMatch, 'B')}</option>
+                  )}
                 </select>
               </div>
               <div className={styles.formGroup}>

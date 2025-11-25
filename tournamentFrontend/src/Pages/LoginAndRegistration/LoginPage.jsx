@@ -54,7 +54,7 @@ function LoginPage() {
         <label>
           Email:
           <input
-            type="email"
+            type="text"
             value={username}
             onChange={(e) => setUsername(e.target.value)}
             required

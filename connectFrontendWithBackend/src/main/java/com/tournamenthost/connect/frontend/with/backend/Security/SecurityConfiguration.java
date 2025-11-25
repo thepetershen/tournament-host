@@ -44,6 +44,7 @@ public class SecurityConfiguration {
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/auth/**").permitAll()
+                .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/tournaments/*/event/*/signup/guest").permitAll()
                 .requestMatchers(org.springframework.http.HttpMethod.GET, "/**").permitAll()
                 .anyRequest().authenticated()
             )

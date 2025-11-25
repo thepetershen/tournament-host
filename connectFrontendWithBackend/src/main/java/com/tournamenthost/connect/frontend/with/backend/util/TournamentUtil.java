@@ -78,7 +78,7 @@ public class TournamentUtil {
             // Fill remaining positions with unseeded players, then byes
             int unseededIndex = 0;
 
-            // First, find all empty positions and sort them by seed priority
+            // First, find all empty positions and group by match
             List<Integer> emptyPositions = new ArrayList<>();
             for (int seed = 1; seed <= bracketSize; seed++) {
                 int position = seedPositions[seed - 1];
@@ -87,8 +87,37 @@ public class TournamentUtil {
                 }
             }
 
-            // Fill empty positions with unseeded players first, then leave rest as byes
+            // Strategy: Ensure each match has at least one player before adding byes
+            // Group empty positions by match (every 2 positions = 1 match)
+            List<Integer> positionsNeedingPlayers = new ArrayList<>();
+            List<Integer> positionsCanBeByes = new ArrayList<>();
+
             for (int position : emptyPositions) {
+                int matchIndex = position / 2;
+                int opponent = (position % 2 == 0) ? matchIndex * 2 + 1 : matchIndex * 2;
+
+                // Check if this match already has a player
+                if (positions[opponent] != null) {
+                    // Opponent exists, this position can be a bye
+                    positionsCanBeByes.add(position);
+                } else {
+                    // No opponent yet, this position needs a player
+                    positionsNeedingPlayers.add(position);
+                }
+            }
+
+            // Fill positions that need players first
+            for (int position : positionsNeedingPlayers) {
+                if (unseededIndex < unseededPlayers.size()) {
+                    positions[position] = unseededPlayers.get(unseededIndex++);
+                }
+            }
+
+            // Shuffle positions that can be byes for random distribution
+            Collections.shuffle(positionsCanBeByes);
+
+            // Fill remaining positions that can be byes
+            for (int position : positionsCanBeByes) {
                 if (unseededIndex < unseededPlayers.size()) {
                     positions[position] = unseededPlayers.get(unseededIndex++);
                 }
@@ -204,7 +233,7 @@ public class TournamentUtil {
             // Fill remaining positions with unseeded teams, then byes
             int unseededIndex = 0;
 
-            // First, find all empty positions and sort them by seed priority
+            // First, find all empty positions and group by match
             List<Integer> emptyPositions = new ArrayList<>();
             for (int seed = 1; seed <= bracketSize; seed++) {
                 int position = seedPositions[seed - 1];
@@ -213,8 +242,37 @@ public class TournamentUtil {
                 }
             }
 
-            // Fill empty positions with unseeded teams first, then leave rest as byes
+            // Strategy: Ensure each match has at least one team before adding byes
+            // Group empty positions by match (every 2 positions = 1 match)
+            List<Integer> positionsNeedingTeams = new ArrayList<>();
+            List<Integer> positionsCanBeByes = new ArrayList<>();
+
             for (int position : emptyPositions) {
+                int matchIndex = position / 2;
+                int opponent = (position % 2 == 0) ? matchIndex * 2 + 1 : matchIndex * 2;
+
+                // Check if this match already has a team
+                if (positions[opponent] != null) {
+                    // Opponent exists, this position can be a bye
+                    positionsCanBeByes.add(position);
+                } else {
+                    // No opponent yet, this position needs a team
+                    positionsNeedingTeams.add(position);
+                }
+            }
+
+            // Fill positions that need teams first
+            for (int position : positionsNeedingTeams) {
+                if (unseededIndex < unseededTeams.size()) {
+                    positions[position] = unseededTeams.get(unseededIndex++);
+                }
+            }
+
+            // Shuffle positions that can be byes for random distribution
+            Collections.shuffle(positionsCanBeByes);
+
+            // Fill remaining positions that can be byes
+            for (int position : positionsCanBeByes) {
                 if (unseededIndex < unseededTeams.size()) {
                     positions[position] = unseededTeams.get(unseededIndex++);
                 }
