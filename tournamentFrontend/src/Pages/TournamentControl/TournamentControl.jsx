@@ -810,6 +810,20 @@ function TournamentControl() {
     }
   };
 
+  const handleDeleteTournament = async () => {
+    if (!window.confirm('Are you sure you want to delete this tournament? This action cannot be undone and will delete all events, matches, and registrations.')) {
+      return;
+    }
+
+    try {
+      await authAxios.delete(`/api/tournaments/${tournamentId}`);
+      showMessage('success', 'Tournament deleted successfully');
+      navigate('/');
+    } catch (err) {
+      showMessage('error', err.response?.data || 'Failed to delete tournament');
+    }
+  };
+
   // Helper functions to get participant names and IDs (supports both players and teams)
   const getParticipantName = (match, side) => {
     // For doubles/team-based matches
@@ -1061,6 +1075,16 @@ function TournamentControl() {
                     <p>{tournament.message}</p>
                   </div>
                 )}
+              </div>
+
+              <div className={styles.dangerZone}>
+                <h3>Danger Zone</h3>
+                <button
+                  className={styles.dangerButton}
+                  onClick={handleDeleteTournament}
+                >
+                  Delete Tournament
+                </button>
               </div>
             </div>
           )}

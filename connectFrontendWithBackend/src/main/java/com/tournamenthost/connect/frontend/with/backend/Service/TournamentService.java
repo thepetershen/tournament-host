@@ -2,6 +2,7 @@ package com.tournamenthost.connect.frontend.with.backend.Service;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -11,6 +12,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.Map;
@@ -3214,5 +3216,103 @@ public class TournamentService {
         }
 
         return tournamentRepo.save(tournament);
+    }
+
+    /**
+     * Remove a tournament and all its related entities from the database.
+     * This method ensures complete deletion of:
+     * - All events associated with the tournament
+     * - All matches (including games) across all events
+     * - All event registrations
+     * - All teams created for events
+     * - All team schedules (for round robin events)
+     * - All points distributions
+     * - Tournament associations with leagues
+     *
+     * @param tournamentId The ID of the tournament to remove
+     * @throws IllegalArgumentException if tournament not found
+     */
+    @Transactional
+    public void removeTournament(Long tournamentId) {
+        // 1. Get tournament (throws exception if not found)
+        Tournament tournament = getTournament(tournamentId);
+
+        // 2. Delete all points distributions for this tournament FIRST
+        // Must be done before any other deletions to avoid Hibernate flush issues
+        List<PointsDistribution> allPointsDistributions = pointsDistributionRepo.findAllByTournament(tournament);
+        if (!allPointsDistributions.isEmpty()) {
+            pointsDistributionRepo.deleteAll(allPointsDistributions);
+        }
+
+        // 3. Get all events for this tournament
+        List<BaseEvent> events = tournament.getEvents();
+
+        // 4. For each event, explicitly delete all related entities
+        for (BaseEvent event : events) {
+
+            // 4a. Delete all event registrations
+            List<EventRegistration> registrations = event.getRegistrations();
+            if (registrations != null && !registrations.isEmpty()) {
+                eventRegistrationRepo.deleteAll(registrations);
+            }
+
+            // 4b. Delete team schedules for RoundRobin events
+            if (event instanceof RoundRobinEvent roundRobinEvent) {
+                teamScheduleRepo.deleteByEvent(roundRobinEvent);
+            }
+
+            // 4c. Delete all teams for this event
+            teamRepo.deleteByEvent(event);
+
+            // 4d. Delete all matches for this event
+            List<Match> allMatches = new ArrayList<>();
+
+            if (event instanceof SingleElimEvent singleElim) {
+                // Collect matches from all rounds
+                for (Round round : singleElim.getRounds()) {
+                    allMatches.addAll(round.getMatches());
+                }
+            } else if (event instanceof DoubleElimEvent doubleElim) {
+                // Collect from winners bracket
+                for (DoubleElimRound round : doubleElim.getWinnersBracket()) {
+                    allMatches.addAll(round.getMatches());
+                }
+                // Collect from losers bracket
+                for (DoubleElimRound round : doubleElim.getLosersBracket()) {
+                    allMatches.addAll(round.getMatches());
+                }
+                // Bronze match
+                if (doubleElim.getBronzeMatch() != null) {
+                    allMatches.add(doubleElim.getBronzeMatch());
+                }
+            } else if (event instanceof RoundRobinEvent roundRobin) {
+                // Collect from team schedules
+                for (TeamSchedule schedule : roundRobin.getTeamSchedules()) {
+                    allMatches.addAll(schedule.getMatches());
+                }
+                // Use distinct to avoid deleting the same match multiple times
+                allMatches = allMatches.stream().distinct().toList();
+            }
+
+            // Delete all collected matches (cascade deletes games)
+            if (!allMatches.isEmpty()) {
+                matchRepo.deleteAll(allMatches);
+            }
+        }
+
+        // 4. Delete all events
+        if (!events.isEmpty()) {
+            eventRepo.deleteAll(events);
+        }
+
+        // 5. Remove tournament from leagues
+        List<League> leagues = leagueRepo.findByTournamentsContaining(tournament);
+        for (League league : leagues) {
+            league.getTournaments().remove(tournament);
+            leagueRepo.save(league);
+        }
+
+        // 6. Delete the tournament itself
+        tournamentRepo.delete(tournament);
     }
 }
