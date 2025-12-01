@@ -21,7 +21,7 @@ function ForgotPasswordPage() {
       const response = await axios.post(`${API_BASE_URL}/auth/forgot-password`, {
         email,
       });
-      setMessage(response.data.message);
+      setMessage(response.data.message + " Please check your spam/junk folder if you don't see it in your inbox.");
       setEmail(""); // Clear the input
     } catch (err) {
       setError("Something went wrong. Please try again.");

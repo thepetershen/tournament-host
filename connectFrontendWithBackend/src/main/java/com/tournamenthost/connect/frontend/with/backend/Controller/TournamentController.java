@@ -104,20 +104,7 @@ public class TournamentController {
         }
     }
 
-    @DeleteMapping("/{tournamentId}")
-    public ResponseEntity<?> deleteTournament(@PathVariable Long tournamentId) {
-        try {
-            User currentUser = getCurrentUser();
-            tournamentService.verifyEditPermission(tournamentId, currentUser);
-
-            tournamentService.removeTournament(tournamentId);
-            return ResponseEntity.ok().build();
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
-        }
-    }
-
-        // URL: POST /api/events
+    // URL: POST /api/events
     @PostMapping("/{tournamentId}/event")
     public ResponseEntity<?> createEvent(@PathVariable Long tournamentId, @RequestBody EventRequest request) {
         try {
