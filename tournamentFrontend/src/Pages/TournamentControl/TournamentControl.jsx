@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import authAxios from '../../utils/authAxios';
@@ -37,6 +37,11 @@ function TournamentControl() {
     matchType: 'SINGLES',
     gamesPerMatch: 1
   });
+  const [previousEventId, setPreviousEventId] = useState(null); // Track previous event to detect switches
+
+  // Refs to track editing state (avoid stale closures)
+  const isEditingSeedsRef = useRef(false);
+  const isEditingTeamSeedsRef = useRef(false);
 
   // Modal state
   const [showCreateEventModal, setShowCreateEventModal] = useState(false);
@@ -122,19 +127,31 @@ function TournamentControl() {
         setTeamSeeds({});
         setManualSeeds({});
         setManualTeamSeeds({});
+        setPreviousEventId(null);
         return;
       }
+
+      // Check if we're switching to a different event
+      const isEventSwitch = previousEventId !== null && previousEventId !== selectedEvent.id;
 
       // Clear stale data before fetching new event data
       setPendingRegistrations([]);
       setEventPlayers([]);
       setTeams([]);
       setMatches([]);
-      setSeeds({});
-      setTeamSeeds({});
-      setManualSeeds({});
-      setManualTeamSeeds({});
       setPointsDistribution({});
+
+      // Only clear seeds when switching to a DIFFERENT event
+      // This preserves manual input when the same event re-renders
+      if (isEventSwitch) {
+        setSeeds({});
+        setTeamSeeds({});
+        setManualSeeds({});
+        setManualTeamSeeds({});
+      }
+
+      // Update previous event ID
+      setPreviousEventId(selectedEvent.id);
 
       // Set match config from selectedEvent
       const isDoubles = selectedEvent.matchType === 'DOUBLES';
@@ -169,7 +186,21 @@ function TournamentControl() {
         if (results[1].status === 'fulfilled') setAllRegistrations(results[1].value.data);
         if (results[2].status === 'fulfilled') setEventPlayers(results[2].value.data);
         if (results[3].status === 'fulfilled') setMatches(results[3].value.data);
-        if (results[4].status === 'fulfilled') setSeeds(results[4].value.data || {});
+
+        // Only update seeds if there are no manual edits in progress
+        if (results[4].status === 'fulfilled') {
+          setSeeds(prevSeeds => {
+            const serverSeeds = results[4].value.data || {};
+
+            // Use ref instead of state - refs are ALWAYS current (no stale closure)
+            if (isEditingSeedsRef.current) {
+              return prevSeeds; // Preserve during editing
+            }
+
+            return serverSeeds;
+          });
+        }
+
         if (results[5].status === 'fulfilled' && results[5].value.data) {
           setPointsDistribution(results[5].value.data.pointsMap || {});
         }
@@ -177,7 +208,20 @@ function TournamentControl() {
         // Set team-specific data for doubles events
         if (isDoubles) {
           if (results[6] && results[6].status === 'fulfilled') setTeams(results[6].value.data || []);
-          if (results[7] && results[7].status === 'fulfilled') setTeamSeeds(results[7].value.data || {});
+
+          // Only update team seeds if there are no manual edits in progress
+          if (results[7] && results[7].status === 'fulfilled') {
+            setTeamSeeds(prevTeamSeeds => {
+              const serverTeamSeeds = results[7].value.data || {};
+
+              // Use ref instead of state - refs are ALWAYS current (no stale closure)
+              if (isEditingTeamSeedsRef.current) {
+                return prevTeamSeeds; // Preserve during editing
+              }
+
+              return serverTeamSeeds;
+            });
+          }
         }
       } catch (err) {
         console.error('Error fetching event data:', err);
@@ -185,7 +229,7 @@ function TournamentControl() {
     };
 
     fetchEventData();
-  }, [selectedEvent, tournamentId]);
+  }, [selectedEvent?.id, tournamentId]); // Use selectedEvent.id instead of whole object to prevent unnecessary re-fetches
 
   const showMessage = (type, text) => {
     setMessage({ type, text });
@@ -553,12 +597,17 @@ function TournamentControl() {
 
   // Seeding management
   const handleSeedChange = (userId, seedValue) => {
+    isEditingSeedsRef.current = true; // Mark as editing
     setManualSeeds(prev => {
       const updated = { ...prev };
       if (seedValue === '' || seedValue === null) {
         delete updated[userId];
       } else {
         updated[userId] = parseInt(seedValue);
+      }
+      // If no more manual seeds, stop editing
+      if (Object.keys(updated).length === 0) {
+        isEditingSeedsRef.current = false;
       }
       return updated;
     });
@@ -591,6 +640,9 @@ function TournamentControl() {
 
       showMessage('success', 'Seeds saved successfully!');
 
+      // Clear editing flag
+      isEditingSeedsRef.current = false;
+
       // Refresh seeds from server
       const seedsRes = await authAxios.get(`/api/tournaments/${tournamentId}/event/${selectedEvent.id}/seeds`);
       setSeeds(seedsRes.data || {});
@@ -606,6 +658,9 @@ function TournamentControl() {
     try {
       await authAxios.delete(`/api/tournaments/${tournamentId}/event/${selectedEvent.id}/seeds`);
       showMessage('success', 'Seeds cleared successfully!');
+
+      // Clear editing flag
+      isEditingSeedsRef.current = false;
 
       // Clear both seeds and manual seeds state immediately
       setSeeds({});
@@ -718,12 +773,17 @@ function TournamentControl() {
 
   // Team seeding management
   const handleTeamSeedChange = (teamId, seedValue) => {
+    isEditingTeamSeedsRef.current = true; // Mark as editing
     setManualTeamSeeds(prev => {
       const updated = { ...prev };
       if (seedValue === '' || seedValue === null) {
         delete updated[teamId];
       } else {
         updated[teamId] = parseInt(seedValue);
+      }
+      // If no more manual seeds, stop editing
+      if (Object.keys(updated).length === 0) {
+        isEditingTeamSeedsRef.current = false;
       }
       return updated;
     });
@@ -756,6 +816,9 @@ function TournamentControl() {
 
       showMessage('success', 'Team seeds saved successfully!');
 
+      // Clear editing flag
+      isEditingTeamSeedsRef.current = false;
+
       // Refresh seeds from server
       const seedsRes = await authAxios.get(`/api/tournaments/${tournamentId}/event/${selectedEvent.id}/seeds/teams`);
       setTeamSeeds(seedsRes.data || {});
@@ -771,6 +834,9 @@ function TournamentControl() {
     try {
       await authAxios.delete(`/api/tournaments/${tournamentId}/event/${selectedEvent.id}/seeds`);
       showMessage('success', 'Team seeds cleared successfully!');
+
+      // Clear editing flag
+      isEditingTeamSeedsRef.current = false;
 
       // Clear both team seeds and manual team seeds state immediately
       setTeamSeeds({});
