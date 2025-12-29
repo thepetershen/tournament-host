@@ -1950,3 +1950,4 @@ io.jsonwebtoken.ExpiredJwtException: JWT expired at 2025-12-02T19:49:02Z. Curren
 2025-12-12 13:22:59.566 [http-nio-8080-exec-3] DEBUG o.s.w.s.m.m.a.HttpEntityMethodProcessor - Using 'application/json', given [application/json, text/plain, */*] and supported [application/json, application/*+json]
 2025-12-12 13:22:59.566 [http-nio-8080-exec-3] DEBUG o.s.w.s.m.m.a.HttpEntityMethodProcessor - Writing [[]]
 2025-12-12 13:22:59.566 [http-nio-8080-exec-3] DEBUG o.s.web.servlet.DispatcherServlet - Completed 200 OK
+2025-12-12 13:24:12.733 [HikariPool-1:housekeeper] WARN  com.zaxxer.hikari.pool.HikariPool - HikariPool-1 - Thread starvation or clock leap detected (housekeeper delta=1m15s793ms).
